@@ -1,0 +1,106 @@
+void cube_soc_init(void)
+{
+platform_config(PLATFORM_CFG_RT_OSC_EN, PLATFORM_CFG_DISABLE);
+platform_config(PLATFORM_CFG_RT_CLK_ACC, 500);
+
+}
+
+void cube_setup_peripherals(void)
+{
+SYSCTRL_SetPClkDiv(5);
+SYSCTRL_SelectSpiClk(SPI_PORT_0, SYSCTRL_CLK_PLL_DIV_4);
+SYSCTRL_SelectQDECClk(SYSCTRL_CLK_HCLK, 1);
+
+SYSCTRL_ClearClkGateMulti((1 << SYSCTRL_ITEM_APB_PinCtrl)
+ | (1 << SYSCTRL_ITEM_AHB_SPI0)
+ | (1 << SYSCTRL_ITEM_APB_UART0));
+
+// SYSCTRL_SelectUsedDmaItems(...)
+
+// SPI0
+// PINCTRL_SelSpiPins(0, 19, 18, 20, 26, 27, 28)
+// PINCTRL_SelSpiIn(0, 19, 18, 20, 26, 27, 28)
+// PINCTRL_SetPadMux(19, 86)
+// PINCTRL_SetPadMux(18, 87)
+// PINCTRL_SetPadMux(20, 88)
+// PINCTRL_SetPadMux(26, 89)
+// PINCTRL_SetPadMux(27, 90)
+// PINCTRL_SetPadMux(28, 91)
+// PINCTRL_SetPadMux(19, 3)
+// PINCTRL_SetPadMux(18, 4)
+// PINCTRL_SetPadMux(20, 5)
+// PINCTRL_SetPadMux(26, 6)
+// PINCTRL_SetPadMux(27, 7)
+// PINCTRL_SetPadMux(28, 8)
+{
+    apSSP_sDeviceControlBlock param;
+
+    apSSP_Initialize(AHB_SSP0);
+
+    /* Set Device Parameters */
+    param.eSclkDiv         = (  SPI_InterfaceTimingSclkDiv )1;
+    param.eSCLKPhase       = (  SPI_TransFmt_CPHA_e        )0;
+    param.eSCLKPolarity    = (  SPI_TransFmt_CPOL_e        )0;
+    param.eLsbMsbOrder     = (  SPI_TransFmt_LSB_e         )0;
+    param.eDataSize        = (  SPI_TransFmt_DataLen_e     )15;
+    param.eMasterSlaveMode = (  SPI_TransFmt_SlvMode_e     )0;
+    param.eReadWriteMode   = (  SPI_TransCtrl_TransMode_e  )0;
+    param.eQuadMode        = (  SPI_TransCtrl_DualQuad_e   )0;
+    param.eWriteTransCnt   = (  SPI_TransCtrl_TransCnt     )0;
+    param.eReadTransCnt    = (  SPI_TransCtrl_TransCnt     )0;
+    param.eAddrEn          = (  SPI_TransCtrl_AddrEn_e     )0;
+    param.eCmdEn           = (  SPI_TransCtrl_CmdEn_e      )0;
+    param.eInterruptMask   = (  SPI_InterruptEnableMask    )0;
+    param.TxThres          = (  SPI_ControlTxThres         )0;
+    param.RxThres          = (  SPI_ControlRxThres         )0;
+    param.SlaveDataOnly    = (  SPI_TransCtrl_SlvDataOnly_e)0;
+    param.eAddrLen         = (  SPI_TransFmt_AddrLen_e     )0;
+    param.eMOSI_Dir        = (  SPI_MOSI_Dir_Set_e         )0;
+
+    apSSP_DeviceParametersSet(AHB_SSP0, &param);
+}
+
+// UART0
+// PINCTRL_SetPadMux(1, 20)
+// PINCTRL_SelUartIn(0, 127, 127)
+{
+    APB_UART0->Control = 0;
+    APB_UART0->IntClear = 0;
+    APB_UART0->IntMask = 0;
+    APB_UART0->StatusClear = 0;
+    APB_UART0->IntBaudDivisor = 13;
+    APB_UART0->FractBaudDivisor = 1;
+    APB_UART0->LineCon_H = ( ((UART_PARITY_NOT_CHECK >> 2) & 1) << bsUART_STICK_PARITY ) |  // SPS
+                        (   3      << bsUART_WORD_LENGTH  ) |  // WLEN
+                        (   1      << bsUART_FIFO_ENABLE  ) |  // FEN
+                        (   0      << bsUART_TWO_STOP_BITS) |  // STP2
+                        ( ( UART_PARITY_NOT_CHECK & 3) << bsUART_PARITY_SELECT) ;  // EPS, EPN
+    APB_UART0->FifoSelect =   (1 << bsUART_TRANS_INT_LEVEL)
+                     | (1 << bsUART_RECV_INT_LEVEL);
+    APB_UART0->IntMask = ((uint32_t)0 << bsUART_RECEIVE_INTENAB)  |
+                  ((uint32_t)0 << bsUART_TRANSMIT_INTENAB) |
+                  ((uint32_t)0 << bsUART_TIMEOUT_INTENAB)  |
+                  ((uint32_t)0 << bsUART_FRAME_INTENAB)    |
+                  ((uint32_t)0 << bsUART_PARITY_INTENAB)   |
+                  ((uint32_t)0 << bsUART_BREAK_INTENAB)    |
+                  ((uint32_t)0 << bsUART_OVERRUN_INTENAB);
+    APB_UART0->Control = ((uint32_t)0 << bsUART_RECEIVE_ENABLE) |
+                  ((uint32_t)1 << bsUART_TRANSMIT_ENABLE)|
+                  ((uint32_t)1 << bsUART_ENABLE)         |
+                  ((uint32_t)0 << bsUART_CTS_ENA)        |
+                  ((uint32_t)0 << bsUART_RTS_ENA);
+}
+
+APB_UART0->DmaCon = (0 << 0) | (0 << 1) | (0 << 2);
+
+// dump PINCTRL registers
+APB_PINCTRL->OUT_CTRL[4] = 0x000a9547; // 0x00001547
+APB_PINCTRL->OUT_CTRL[5] = 0x00054000; // 0x00000000
+APB_PINCTRL->IN_CTRL[0] = 0x01294864; // 0x01fffc64
+APB_PINCTRL->IN_CTRL[1] = 0x01ffd294; // 0x01ffffff
+APB_PINCTRL->IN_CTRL[3] = 0x01ffffff; // 0x01f17fff
+}
+
+void cube_on_lle_init(void)
+{
+}

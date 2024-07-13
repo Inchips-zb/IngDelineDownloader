@@ -1,0 +1,18 @@
+#define HANDLE_DEVICE_NAME                                   3
+#define HANDLE_APPEARANCE                                    5
+#define HANDLE_GENERIC_INPUT                                 8
+#define HANDLE_GENERIC_OUTPUT                                10
+#define HANDLE_GENERIC_OUTPUT_CLIENT_CHAR_CONFIG             11
+#define HANDLE_FOTA_VERSION                                  14
+#define HANDLE_FOTA_CONTROL                                  16
+#define HANDLE_FOTA_DATA                                     18
+
+#define HANDLE_DEVICE_NAME_OFFSET                            31
+#define HANDLE_APPEARANCE_OFFSET                             66
+#define HANDLE_GENERIC_INPUT_OFFSET                          140
+#define HANDLE_GENERIC_OUTPUT_OFFSET                         189
+#define HANDLE_GENERIC_OUTPUT_CLIENT_CHAR_CONFIG_OFFSET      197
+#define HANDLE_FOTA_VERSION_OFFSET                           272
+#define HANDLE_FOTA_CONTROL_OFFSET                           321
+#define HANDLE_FOTA_DATA_OFFSET                              370
+

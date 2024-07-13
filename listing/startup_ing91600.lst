@@ -1,0 +1,342 @@
+
+
+
+ARM Macro Assembler    Page 1 
+
+
+    1 00000000         ;/******************************************************
+                       ********************//**
+    2 00000000         ; * @file     startup_ARMCM3.s
+    3 00000000         ; * @brief    CMSIS Core Device Startup File for
+    4 00000000         ; *           ARMCM3 Device Series
+    5 00000000         ; * @version  V1.08
+    6 00000000         ; * @date     03. February 2012
+    7 00000000         ; *
+    8 00000000         ; * @note
+    9 00000000         ; * Copyright (C) 2012 ARM Limited. All rights reserved.
+                       
+   10 00000000         ; *
+   11 00000000         ; * @par
+   12 00000000         ; * ARM Limited (ARM) is supplying this software for use
+                        with Cortex-M 
+   13 00000000         ; * processor based microcontrollers.  This file can be 
+                       freely distributed 
+   14 00000000         ; * within development tools that are supporting such AR
+                       M based processors. 
+   15 00000000         ; *
+   16 00000000         ; * @par
+   17 00000000         ; * THIS SOFTWARE IS PROVIDED "AS IS".  NO WARRANTIES, W
+                       HETHER EXPRESS, IMPLIED
+   18 00000000         ; * OR STATUTORY, INCLUDING, BUT NOT LIMITED TO, IMPLIED
+                        WARRANTIES OF
+   19 00000000         ; * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+                        APPLY TO THIS SOFTWARE.
+   20 00000000         ; * ARM SHALL NOT, IN ANY CIRCUMSTANCES, BE LIABLE FOR S
+                       PECIAL, INCIDENTAL, OR
+   21 00000000         ; * CONSEQUENTIAL DAMAGES, FOR ANY REASON WHATSOEVER.
+   22 00000000         ; *
+   23 00000000         ; ******************************************************
+                       ************************/
+   24 00000000         ;/*
+   25 00000000         ;//-------- <<< Use Configuration Wizard in Context Menu
+                        >>> ------------------
+   26 00000000         ;*/
+   27 00000000         
+   28 00000000 00000400 
+                       Stack_Size
+                               EQU              0x00000400
+   29 00000000         
+   30 00000000                 AREA             STACK, NOINIT, READWRITE, ALIGN
+=3
+   31 00000000         Stack_Mem
+                               SPACE            Stack_Size
+   32 00000400         __initial_sp
+   33 00000400                 EXPORT           __initial_sp
+   34 00000400         
+   35 00000400         
+   36 00000400                 EXPORT           __heap_base
+   37 00000400                 EXPORT           __heap_limit
+   38 00000400         
+   39 00000400 00002400 
+                       Heap_Size
+                               EQU              9*1024
+   40 00000400         
+   41 00000400                 AREA             HEAP, NOINIT, READWRITE, ALIGN=
+3
+
+
+
+ARM Macro Assembler    Page 2 
+
+
+   42 00000000         __heap_base
+   43 00000000         Heap_Mem
+                               SPACE            Heap_Size
+   44 00002400         __heap_limit
+   45 00002400         
+   46 00002400                 PRESERVE8
+   47 00002400                 THUMB
+   48 00002400         
+   49 00002400         ; Vector Table Mapped to Address 0 at Reset
+   50 00002400         
+   51 00002400                 AREA             RESET, DATA, READONLY
+   52 00000000                 EXPORT           __Vectors
+   53 00000000         
+   54 00000000 00000000 
+                       __Vectors
+                               DCD              __initial_sp ; Top of Stack
+   55 00000004 00000000        DCD              Reset_Handler ; Reset Handler
+   56 00000008         
+   57 00000008         __Vectors_End
+   58 00000008         
+   59 00000008 00000008 
+                       __Vectors_Size
+                               EQU              __Vectors_End - __Vectors
+   60 00000008         
+   61 00000008         
+   62 00000008                 AREA             |.text|, CODE, READONLY
+   63 00000000         
+   64 00000000         
+   65 00000000         ; Reset Handler
+   66 00000000         
+   67 00000000         Reset_Handler
+                               PROC
+   68 00000000                 EXPORT           Reset_Handler
+   69 00000000                 IMPORT           __scatterload
+   70 00000000         
+   71 00000000         ; this push is consumed by main
+   72 00000000 B502            PUSH             {R1, LR}
+   73 00000002         
+   74 00000002         ; save msp
+   75 00000002 F3EF 8108       MRS              R1, MSP
+   76 00000006 F381 8809       MSR              PSP, R1
+   77 0000000A         
+   78 0000000A 4805            LDR              R0, =__scatterload
+   79 0000000C 4700            BX               R0
+   80 0000000E         
+   81 0000000E                 ENDP
+   82 0000000E         
+   83 0000000E 00 00           ALIGN
+   84 00000010         
+   85 00000010         main    PROC
+   86 00000010                 EXPORT           main
+   87 00000010                 IMPORT           app_main
+   88 00000010         
+   89 00000010 4804            LDR              R0, =app_main
+   90 00000012 4780            BLX              R0
+   91 00000014         
+   92 00000014         ; restore msp
+   93 00000014 F3EF 8109       MRS              R1, PSP
+   94 00000018 F381 8808       MSR              MSP, R1
+
+
+
+ARM Macro Assembler    Page 3 
+
+
+   95 0000001C         
+   96 0000001C BD02            POP              {R1, PC}
+   97 0000001E         
+   98 0000001E                 ENDP
+   99 0000001E         
+  100 0000001E 00 00           ALIGN
+  101 00000020         
+  102 00000020                 END
+              00000000 
+              00000000 
+Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M4.fp.sp --depen
+d=.\output\startup_ing91600.d -o.\output\startup_ing91600.o -I.\RTE\_Target_1 -
+IC:\Users\Bingo\AppData\Local\Arm\Packs\ARM\CMSIS\5.8.0\CMSIS\Core\Include --pr
+edefine="__MICROLIB SETA 1" --predefine="__UVISION_VERSION SETA 536" --predefin
+e="_RTE_ SETA 1" --predefine="_RTE_ SETA 1" --list=.\listing\startup_ing91600.l
+st src\startup_ing91600.s
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+STACK 00000000
+
+Symbol: STACK
+   Definitions
+      At line 30 in file src\startup_ing91600.s
+   Uses
+      None
+Comment: STACK unused
+Stack_Mem 00000000
+
+Symbol: Stack_Mem
+   Definitions
+      At line 31 in file src\startup_ing91600.s
+   Uses
+      None
+Comment: Stack_Mem unused
+__initial_sp 00000400
+
+Symbol: __initial_sp
+   Definitions
+      At line 32 in file src\startup_ing91600.s
+   Uses
+      At line 33 in file src\startup_ing91600.s
+      At line 54 in file src\startup_ing91600.s
+
+3 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+HEAP 00000000
+
+Symbol: HEAP
+   Definitions
+      At line 41 in file src\startup_ing91600.s
+   Uses
+      None
+Comment: HEAP unused
+Heap_Mem 00000000
+
+Symbol: Heap_Mem
+   Definitions
+      At line 43 in file src\startup_ing91600.s
+   Uses
+      None
+Comment: Heap_Mem unused
+__heap_base 00000000
+
+Symbol: __heap_base
+   Definitions
+      At line 42 in file src\startup_ing91600.s
+   Uses
+      At line 36 in file src\startup_ing91600.s
+Comment: __heap_base used once
+__heap_limit 00002400
+
+Symbol: __heap_limit
+   Definitions
+      At line 44 in file src\startup_ing91600.s
+   Uses
+      At line 37 in file src\startup_ing91600.s
+Comment: __heap_limit used once
+4 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+RESET 00000000
+
+Symbol: RESET
+   Definitions
+      At line 51 in file src\startup_ing91600.s
+   Uses
+      None
+Comment: RESET unused
+__Vectors 00000000
+
+Symbol: __Vectors
+   Definitions
+      At line 54 in file src\startup_ing91600.s
+   Uses
+      At line 52 in file src\startup_ing91600.s
+      At line 59 in file src\startup_ing91600.s
+
+__Vectors_End 00000008
+
+Symbol: __Vectors_End
+   Definitions
+      At line 57 in file src\startup_ing91600.s
+   Uses
+      At line 59 in file src\startup_ing91600.s
+Comment: __Vectors_End used once
+3 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Relocatable symbols
+
+.text 00000000
+
+Symbol: .text
+   Definitions
+      At line 62 in file src\startup_ing91600.s
+   Uses
+      None
+Comment: .text unused
+Reset_Handler 00000000
+
+Symbol: Reset_Handler
+   Definitions
+      At line 67 in file src\startup_ing91600.s
+   Uses
+      At line 55 in file src\startup_ing91600.s
+      At line 68 in file src\startup_ing91600.s
+
+main 00000010
+
+Symbol: main
+   Definitions
+      At line 85 in file src\startup_ing91600.s
+   Uses
+      At line 86 in file src\startup_ing91600.s
+Comment: main used once
+3 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+Absolute symbols
+
+Heap_Size 00002400
+
+Symbol: Heap_Size
+   Definitions
+      At line 39 in file src\startup_ing91600.s
+   Uses
+      At line 43 in file src\startup_ing91600.s
+Comment: Heap_Size used once
+Stack_Size 00000400
+
+Symbol: Stack_Size
+   Definitions
+      At line 28 in file src\startup_ing91600.s
+   Uses
+      At line 31 in file src\startup_ing91600.s
+Comment: Stack_Size used once
+__Vectors_Size 00000008
+
+Symbol: __Vectors_Size
+   Definitions
+      At line 59 in file src\startup_ing91600.s
+   Uses
+      None
+Comment: __Vectors_Size unused
+3 symbols
+
+
+
+ARM Macro Assembler    Page 1 Alphabetic symbol ordering
+External symbols
+
+__scatterload 00000000
+
+Symbol: __scatterload
+   Definitions
+      At line 69 in file src\startup_ing91600.s
+   Uses
+      At line 78 in file src\startup_ing91600.s
+Comment: __scatterload used once
+app_main 00000000
+
+Symbol: app_main
+   Definitions
+      At line 87 in file src\startup_ing91600.s
+   Uses
+      At line 89 in file src\startup_ing91600.s
+Comment: app_main used once
+2 symbols
+354 symbols in table
