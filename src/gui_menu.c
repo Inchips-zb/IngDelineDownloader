@@ -14,6 +14,7 @@ u8g2_t u8g2;        //显示器初始化结构体
 
 #define BEER_FREQ_KEY_BACK   	2600
 #define BEER_FREQ_KEY_CONFIRM   2900
+#define BEER_FREQ_KEY_PSH       3100
 
 static void drawLog(u8g2_t *u8g2)
 {
@@ -124,7 +125,7 @@ uint8_t pageBurningDisply(void *user_data)
 						printf("key back\n");
 						return PAGE_SHOW_MAIN;
 					}
-					if(RecvMsg.length & 0x02) {
+					if(RecvMsg.length & 0x06) {
 						apUART_BaudRateSet(APB_UART1,SYSCTRL_GetClk(SYSCTRL_ITEM_APB_UART1),115200);
 						ing_bootloader_trig();
 						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
@@ -220,7 +221,7 @@ uint8_t pageMainDisply(void *user_data)
 						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
 						printf("key back\n");
 					}
-					if(RecvMsg.length & 0x02) {
+					if(RecvMsg.length & 0x02 ) {
 						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
 						
 						printf("page entry:%d\n",index_menu);
@@ -283,7 +284,7 @@ uint8_t pageUdiskDisply(void *user_data)
 						printf("key back\n");
 						platform_reset();
 					}
-					if(RecvMsg.length & 0x02) {
+					if(RecvMsg.length & 0x06) {
 						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
 						
 						printf("key confirm\n");
@@ -489,7 +490,7 @@ uint8_t pageFileBrowse(void *user_data){
 						return (PAGE_SHOW_MAIN);
 						printf("key back\n");
 					}
-					if(RecvMsg.length & 0x02) {
+					if(RecvMsg.length & 0x06) {
 						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
 						
 						printf("key confirm\n");
@@ -540,7 +541,7 @@ uint8_t pageVoidDisply(void *user_data)
 						return (PAGE_SHOW_MAIN);
 						printf("key back\n");
 					}
-					if(RecvMsg.length & 0x02) {
+					if(RecvMsg.length & 0x06) {
 						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
 						
 						printf("key confirm\n");
@@ -609,7 +610,7 @@ uint8_t eraseMainDisply(void *user_data)
 						printf("key back\n");
 						return (PAGE_SHOW_MAIN);
 					}
-					if(RecvMsg.length & 0x02) {
+					if(RecvMsg.length & 0x06) {
 						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
 						
 						printf("key confirm\n");

@@ -20,37 +20,6 @@ static void QDEC_PclkCfg(void)
     else;               // ERROR
 }
 
-#define PSH        GIO_GPIO_10
-
-static uint32_t gpio0_isr(void *user_data);
-	
-void setup_peripherals_psh(void)
-{
-    SYSCTRL_ClearClkGateMulti(0 |(1 << SYSCTRL_ITEM_APB_PinCtrl)
-                                |(1 << SYSCTRL_ITEM_APB_GPIO0));   
-	
-    PINCTRL_SetPadMux(PSH, IO_SOURCE_GPIO);
-	GIO_SetDirection((GIO_Index_t)PSH, GIO_DIR_INPUT);  
-	PINCTRL_Pull(PSH, PINCTRL_PULL_DOWN);
-
-	GIO_ConfigIntSource(PSH, GIO_INT_EN_LOGIC_LOW_OR_FALLING_EDGE, GIO_INT_EDGE);
-
-	platform_set_irq_callback(PLATFORM_CB_IRQ_GPIO0, gpio0_isr, NULL);
-}
-
-static uint32_t gpio0_isr(void *user_data)
-{
-    uint16_t v = 0;
-    // report which keys are pressed
-	if ((1 == GIO_GetIntStatus(PSH)) && (0 == GIO_ReadValue(PSH)))
-        v |= 1;
-
-	printf("PSH:%d,%d\r\n",GIO_GetIntStatus(PSH),GIO_ReadValue(PSH));
-
-    GIO_ClearAllIntStatus();
-    return 0;
-}
-
 
 void QDEC_Setup(void)
 {
@@ -69,7 +38,7 @@ void QDEC_Setup(void)
     QDEC_ChannelEnable(1);
     // restore PClk
     SYSCTRL_SetPClkDiv(div);
-	setup_peripherals_psh();
+
 }
 
 static uint16_t StepCal(uint16_t preData, uint16_t data, int8_t *dir)

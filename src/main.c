@@ -78,11 +78,7 @@ void setup_peripherals(void)
 	setup_peripherals_key();
 	setup_buzzer();
 	setupBurnTrigIo();
-	if((0 == GIO_ReadValue(GIO_GPIO_7)))	
-	{
-		bsp_usb_init();	
-	    platform_printf("INIT USB\n");
-	}
+
 }
 
 uint32_t on_lle_init(void *dummy, void *user_data)
@@ -156,15 +152,20 @@ static void setupBurnTrigIo(void)
 uint8_t page_index = PAGE_SHOW_LOG;
 static void u8g2_task(void *pdata)
 {
-	
-
 	u8g2Init(&u8g2);
 #ifdef TEST_FAFTS
-	if((1 == GIO_ReadValue(GIO_GPIO_7)))
+	if((1 == GIO_ReadValue(KB_KEY_PSH)))
+	{
+	    page_index = PAGE_SHOW_LOG;
 		load_downloader_cfg();
-	else
+	}
+	else{
 		page_index = PAGE_SHOW_UDISK;
+		bsp_usb_init();	
+	    platform_printf("INIT USB\n");
+	}
 #endif
+	platform_enable_irq(PLATFORM_CB_IRQ_GPIO0,1);//enable key isr
 	uart_buner_start();
 	uart_driver_init(APB_UART1, NULL, uart_buner_rx_data);
 	setup_uart1();
