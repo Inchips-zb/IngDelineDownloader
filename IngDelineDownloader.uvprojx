@@ -483,6 +483,11 @@
               <FileType>1</FileType>
               <FilePath>.\src\bmp.c</FilePath>
             </File>
+            <File>
+              <FileName>ble_scan_adv_list.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\ble_scan_adv_list.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>
@@ -592,6 +597,13 @@
         </Group>
         <Group>
           <GroupName>Tools</GroupName>
+          <Files>
+            <File>
+              <FileName>ad_parser.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\sdk\src\Tools\ad_parser.c</FilePath>
+            </File>
+          </Files>
         </Group>
         <Group>
           <GroupName>FreeRTOS</GroupName>

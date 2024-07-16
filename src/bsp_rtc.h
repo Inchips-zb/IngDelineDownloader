@@ -42,9 +42,9 @@ typedef struct
                          This parameter must be a number between Min_Data = 0 and Max_Data = 99 */
 
 } RTC_DateTypeDef;
-void setup_rtc(void);
-uint8_t get_rtc_time(RTC_TimeTypeDef *pTime,RTC_DateTypeDef *pDate);
-uint8_t modify_rtc_time(uint16_t syear,uint8_t smon,uint8_t sday,uint8_t hour,uint8_t min,uint8_t sec);
+extern  void setup_rtc(void);
+extern  uint8_t get_rtc_time(RTC_TimeTypeDef *pTime,RTC_DateTypeDef *pDate);
+extern  uint8_t modify_rtc_time(uint16_t syear,uint8_t smon,uint8_t sday,uint8_t hour,uint8_t min,uint8_t sec);
 #ifdef __cplusplus
 } /* allow C++ to use these headers */
 #endif	/* __cplusplus */

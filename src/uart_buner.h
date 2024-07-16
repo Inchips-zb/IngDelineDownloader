@@ -39,8 +39,8 @@ typedef struct downdloader_cfg
 
 #pragma pack (pop)
 
-void uart_buner_rx_data(const char *d, uint8_t len,uint8_t cmpl);
-void uart_buner_start(void);
-downdloader_cfg_t *get_downloader_cfg(void);
+extern  void uart_buner_rx_data(const char *d, uint8_t len,uint8_t cmpl);
+extern  void uart_buner_start(void);
+extern  downdloader_cfg_t *get_downloader_cfg(void);
 
 #endif

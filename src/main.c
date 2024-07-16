@@ -216,7 +216,7 @@ static void u8g2_task(void *pdata)
 			}break;		
 			case PAGE_SHOW_BLE:
 			{        
-				page_index = pageVoidDisply(NULL);
+				page_index = pageBleDisply(NULL);
 			}break;		
 			default:break;
 		}

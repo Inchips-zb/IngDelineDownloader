@@ -10,6 +10,8 @@
 #include "uart_buner.h"
 #include "minIni.h"
 
+#include "ff.h"
+
 
 #define print_err(fun,line,code) platform_printf("[ERR] %s(%d): %d\n",fun, line, code)
 FATFS *fs = NULL;                         /* FatFs文件系统对象 */
@@ -183,45 +185,91 @@ void extractFileName(const char *filepath, char *filename) {
 }
 
 
-#include <stdio.h>
-#include <string.h>
-#include "ff.h"
 
-void listRootDirectoryFiles() {
+
+fileNode* createFileNode(const char* name) {
+    fileNode* newNode = (fileNode*)malloc(sizeof(fileNode));
+    strcpy(newNode->name, name);
+    newNode->next = NULL;
+    return newNode;
+}
+
+static void insertFileNode(fileNode** head, fileNode* newNode) {
+    if (*head == NULL) {
+        *head = newNode;
+    } else {
+        fileNode* current = *head;
+        while (current->next != NULL) {
+            current = current->next;
+        }
+        current->next = newNode;
+    }
+}
+
+void freeFileList(fileNode* head) {
+    fileNode* current = head;
+    while (current != NULL) {
+        fileNode* temp = current;
+        current = current->next;
+        free(temp);
+    }
+}
+
+
+fileNode* files_scan(char *path, uint16_t *fileNums)
+{
     FATFS fs;
     FILINFO fileInfo;
     DIR dir;
     FRESULT res;
-
+	uint8_t i = 0;
+	
+    fileNode* head = NULL;
+	if(!use_fatfs_mount(1)) return NULL;
     // 打开根目录
-    res = f_opendir(&dir, "1:");
+    res = f_opendir(&dir, path);
     if (res != FR_OK) {
 
-        return;
+        return NULL;
     }
-
+	
     // 遍历根目录下的所有文件
-    while (1)
-	{
-        res = f_readdir(&dir, &fileInfo);
-        if (res != FR_OK || fileInfo.fname[0] == 0) {
-            // 读取目录项失败或者到达目录末尾，退出循环
-            break;
-        }
 
-        if (fileInfo.fattrib & AM_DIR) {
-            // 是一个目录
-			if(strcmp("System Volume Information",fileInfo.fname))
-				printf("dir：%s\n", fileInfo.fname);
-        } else {
-            // 是一个文件
-            printf("file：%s\n", fileInfo.fname);
-        }
-    }
-
+		while (1)
+		{
+			res = f_readdir(&dir, &fileInfo);
+			if (res != FR_OK || fileInfo.fname[0] == 0) {
+				// 读取目录项失败或者到达目录末尾，退出循环
+				break;
+			}
+			if (fileInfo.fattrib & AM_DIR) {
+				// 是一个目录
+				if (strcmp(fileInfo.fname, ".") != 0 && strcmp(fileInfo.fname, "..") != 0) {
+					fileNode* newNode = createFileNode(fileInfo.fname);
+					if(newNode){
+						insertFileNode(&head, newNode);
+						newNode->isFile = 0;
+					}else
+					{
+						printf("Creat faile\n");
+					}
+				}
+			} else {
+				fileNode* newNode = createFileNode(fileInfo.fname);
+				if(newNode){
+					insertFileNode(&head, newNode);
+					newNode->isFile = 1;
+					*fileNums += 1;
+				}else
+				{
+					printf("Creat faile\n");
+				}
+			}		
+		}
     // 关闭目录
     f_closedir(&dir);
-
+	use_fatfs_mount(0);
+	return head;
 }
 
 

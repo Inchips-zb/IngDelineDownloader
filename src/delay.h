@@ -7,8 +7,8 @@ extern "C" {
 
 #include <stdint.h>
 
-void delay_ms(int ms);
-void delay_us(int us);	
+extern  void delay_ms(int ms);
+extern  void delay_us(int us);	
 
 #ifdef __cplusplus
 }

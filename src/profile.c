@@ -5,6 +5,12 @@
 #include "btstack_event.h"
 #include "btstack_defines.h"
 #include "ota_service.h"
+#include "profile.h"
+#include "bsp_msg.h"
+#include "gatt_client.h"
+#include "ble_scan_adv_list.h"
+#include "ad_parser.h"
+#include "string.h"
 // GATT characteristic handles
 #include "../data/gatt.const"
 
@@ -24,6 +30,21 @@ const static uint8_t profile_data[] = {
     #include "../data/gatt.profile"
 };
 
+static const scan_phy_config_t configs[] =
+{
+    {
+        .phy = PHY_1M,
+        .type = SCAN_PASSIVE,
+        .interval = 200,
+        .window = 190
+    },
+    {
+        .phy = PHY_CODED,
+        .type = SCAN_PASSIVE,
+        .interval = 200,
+        .window = 190
+    }
+};
 
 // 应用版本管理
 prog_ver_t prog_ver = { .major = 1, .minor = 0, .patch = 1 };
@@ -82,26 +103,34 @@ static int att_write_callback(hci_con_handle_t connection_handle, uint16_t att_h
         return 0;
     }
 }
+const static ext_adv_set_en_t adv_sets_en[] = { {.handle = 0, .duration = 0, .max_events = 0} };
+
 
 static void user_msg_handler(uint32_t msg_id, void *data, uint16_t size)
 {
     switch (msg_id)
     {
         // add your code
-    //case MY_MESSAGE_ID:
-    //    break;
+    case USER_MSG_BLE_STATE_SET:
+	{
+		uint8_t en = size ? 1:0;
+		uint8_t ret = gap_set_ext_adv_enable(en, sizeof(adv_sets_en) / sizeof(adv_sets_en[0]), adv_sets_en);
+	    ret |=  gap_set_ext_scan_enable(en, 0, 0, 0);   // start continuous scanning
+		UserQue_SendMsg(USER_MSG_BLE_STATE,NULL,ret);
+	}
+        break;
+
     default:
         ;
     }
 }
 
-const static ext_adv_set_en_t adv_sets_en[] = { {.handle = 0, .duration = 0, .max_events = 0} };
 
 static void setup_adv(void)
 {
     gap_set_ext_adv_para(0,
                             CONNECTABLE_ADV_BIT | SCANNABLE_ADV_BIT | LEGACY_PDU_BIT,
-                            0x00a1, 0x00a1,            // Primary_Advertising_Interval_Min, Primary_Advertising_Interval_Max
+                            800, 800,                  // Primary_Advertising_Interval_Min, Primary_Advertising_Interval_Max
                             PRIMARY_ADV_ALL_CHANNELS,  // Primary_Advertising_Channel_Map
                             BD_ADDR_TYPE_LE_RANDOM,    // Own_Address_Type
                             BD_ADDR_TYPE_LE_PUBLIC,    // Peer_Address_Type (ignore)
@@ -115,12 +144,24 @@ static void setup_adv(void)
                             0x00);                     // Scan_Request_Notification_Enable
     gap_set_ext_adv_data(0, sizeof(adv_data), (uint8_t*)adv_data);
     gap_set_ext_scan_response_data(0, sizeof(scan_data), (uint8_t*)scan_data);
-    gap_set_ext_adv_enable(1, sizeof(adv_sets_en) / sizeof(adv_sets_en[0]), adv_sets_en);
+    
 }
 
+static void setup_scan(void)
+{
+	gap_set_ext_scan_para(BD_ADDR_TYPE_LE_RANDOM, SCAN_ACCEPT_ALL_EXCEPT_NOT_DIRECTED,
+						  sizeof(configs) / sizeof(configs[0]),
+						  configs);
+    
+}
+
+uint8_t adv_report_data[36];
 static void user_packet_handler(uint8_t packet_type, uint16_t channel, const uint8_t *packet, uint16_t size)
 {
     static const bd_addr_t rand_addr = { 0xD2, 0xBD, 0xE9, 0xD3, 0x82, 0x3E };
+	bd_addr_t peer_addr; 
+	uint8_t name[32] = {0};
+	uint16_t nameLen;
     uint8_t event = hci_event_packet_get_type(packet);
     const btstack_user_msg_t *p_user_msg;
     if (packet_type != HCI_EVENT_PACKET) return;
@@ -131,7 +172,9 @@ static void user_packet_handler(uint8_t packet_type, uint16_t channel, const uin
         if (btstack_event_state_get_state(packet) != HCI_STATE_WORKING)
             break;
         gap_set_adv_set_random_addr(0, rand_addr);
+		gap_set_random_device_address(rand_addr);
         setup_adv();
+		setup_scan();
         break;
 
     case HCI_EVENT_COMMAND_COMPLETE:
@@ -148,6 +191,19 @@ static void user_packet_handler(uint8_t packet_type, uint16_t channel, const uin
     case HCI_EVENT_LE_META:
         switch (hci_event_le_meta_get_subevent_code(packet))
         {
+			case HCI_SUBEVENT_LE_EXTENDED_ADVERTISING_REPORT:
+            {
+                const le_ext_adv_report_t *report = decode_hci_le_meta_event(packet, le_meta_event_ext_adv_report_t)->reports;
+				memcpy(adv_report_data,report->data,report->data_len);
+				const uint8_t *pAD = ad_data_from_type(report->data_len,adv_report_data,0x09,&nameLen);
+				if(nameLen > 32) break;
+				if(pAD)memcpy(name,pAD,nameLen);
+				name[nameLen] = 0;
+                reverse_bd_addr(report->address, peer_addr);
+				addAdvNode(advListHead,(char*)name,peer_addr,report->rssi);
+				//printf("rssi:%d\n",report->rssi);
+            }
+            break;
         case HCI_SUBEVENT_LE_ENHANCED_CONNECTION_COMPLETE:
         case HCI_SUBEVENT_LE_ENHANCED_CONNECTION_COMPLETE_V2:
             att_set_db(decode_hci_le_meta_event(packet, le_meta_event_enh_create_conn_complete_t)->handle,
@@ -160,7 +216,7 @@ static void user_packet_handler(uint8_t packet_type, uint16_t channel, const uin
         break;
 
     case HCI_EVENT_DISCONNECTION_COMPLETE:
-        gap_set_ext_adv_enable(1, sizeof(adv_sets_en) / sizeof(adv_sets_en[0]), adv_sets_en);
+       
         break;
 
     case ATT_EVENT_CAN_SEND_NOW:
@@ -187,6 +243,7 @@ uint32_t setup_profile(void *data, void *user_data)
     hci_event_callback_registration.callback = &user_packet_handler;
     hci_add_event_handler(&hci_event_callback_registration);
     att_server_register_packet_handler(&user_packet_handler);
+	gatt_client_register_handler(user_packet_handler);
     return 0;
 }
 

@@ -34,4 +34,5 @@ extern uint8_t eraseMainDisply(void *user_data);
 extern uint8_t pageVoidDisply(void *user_data);
 extern uint8_t pageFileBrowse(void *user_data);
 extern uint8_t pageUdiskDisply(void *user_data);
+extern uint8_t pageBleDisply(void *user_data);
 #endif // !_GUI_MENU_H

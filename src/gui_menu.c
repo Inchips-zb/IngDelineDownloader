@@ -10,6 +10,11 @@
 #include "bsp_buzzer.h"
 #include "bmp.h"
 #include <string.h>
+#include "btstack_event.h"
+#include "profile.h"
+#include "ble_scan_adv_list.h"
+
+
 
 u8g2_t u8g2;        //显示器初始化结构体
 
@@ -219,7 +224,7 @@ static void mainPageDrawBackground(uint8_t index,uint8_t x)
 	} while (u8g2_NextPage(&u8g2));
 
 }
-char sc_buff[128];
+
 static int index_menu = 0;
 uint8_t pageMainDisply(void *user_data)
 {
@@ -253,7 +258,7 @@ uint8_t pageMainDisply(void *user_data)
 					
 					if(index_menu < 0) index_menu = MENU_NUMS-1;
 					
-					if(index_menu == MENU_NUMS) index_menu = 0;
+					if(index_menu >= MENU_NUMS) index_menu = 0;
 					
 					index_menu = index_menu % (MENU_NUMS);
 					mainPageDrawBackground(index_menu,0);	
@@ -318,6 +323,114 @@ uint8_t pageUdiskDisply(void *user_data)
 	return 0;
 }
 
+
+volatile uint8_t bleState = 0;
+
+#define BLE_DISPLAY_START_Y (1)	
+
+static void showAdvLinkedList(advNode* startNode,uint8_t showNums,uint16_t total) {
+    advNode* currentNode = startNode;
+	char sc_buff[64];
+	const bmp_t *pBmp = bleState ? &bmpOn : &bmpOff;
+	u8g2_FirstPage(&u8g2);
+	do
+	{   
+		u8g2_SetFont(&u8g2, u8g2_font_amstrad_cpc_extended_8r);
+		u8g2_DrawXBMP(&u8g2, 100, BLE_DISPLAY_START_Y,pBmp->xSize, pBmp->ySize, pBmp->pBitmap);
+		u8g2_DrawStr(&u8g2, 4, BLE_DISPLAY_START_Y+12,"BLE");
+		u8g2_SetFont(&u8g2, u8g2_font_5x7_tr);
+	    for (int i = 0; i < showNums; i++) {
+			if (currentNode != NULL) {
+				if(currentNode->name[0]){
+					if(strlen(currentNode->name) <= 17){
+						int sz = sprintf(sc_buff,"%s", currentNode->name);
+						for(int j = sz-1;j <= 17;j++)
+							sc_buff[j] = ' ';
+					}
+					else
+					{
+						extractLastCharacters(currentNode->name,17,sc_buff);
+					}
+					sprintf(sc_buff+17," %ddBm", currentNode->rssi);
+						
+				}
+				else{
+					sprintf(sc_buff,"%02x:%02x:%02x:%02x:%02x:%02x %ddBm", currentNode->address[0],currentNode->address[1],currentNode->address[2],currentNode->address[3],currentNode->address[4],currentNode->address[5],currentNode->rssi);
+				}
+				currentNode = currentNode->next;
+			} 
+			else 
+			{
+			  printf("No more nodes\n");
+				
+			  break;
+			}
+			u8g2_DrawStr(&u8g2, 0, 30+i*8,sc_buff);
+	  }
+  } while (u8g2_NextPage(&u8g2));
+}
+
+
+uint8_t pageBleDisply(void *user_data)
+{
+	UserQue_msg_t RecvMsg;
+	int8_t  coder = 0;
+	uint8_t ble_state = 0;
+	static int index_menu = 0;
+	
+	advListHead = createAdvLinkedList();
+	scrollAdvLinkedList(advListHead,5,0,showAdvLinkedList);
+    for (;;)
+    {
+		if(UserQueMsgGet(&RecvMsg)) 
+		{
+			switch(RecvMsg.msg_id){
+				
+				case USER_MSG_KEY:{
+					
+					if(RecvMsg.length & 0x01) {
+						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+						printf("key back\n");
+						freeAdvLinkedList(advListHead);
+						advListHead = NULL;
+					    return (PAGE_SHOW_MAIN);
+					}
+					if(RecvMsg.length & 0x06) {
+						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+						ble_state = !ble_state;
+						if(advListHead)
+							btstack_push_user_msg(USER_MSG_BLE_STATE_SET, (void *)NULL, ble_state);
+						printf("key confirm\n");
+					}
+				}break;
+	
+				case USER_MSG_BLE_STATE:
+				case USER_MSG_BLE_REFRESH:{
+					if(0 == RecvMsg.length)
+					{
+						bleState = ble_state;
+						scrollAdvLinkedList(advListHead,5,0,showAdvLinkedList);	
+					}
+				}break;
+
+				case USER_MSG_CODER:{
+					key_coder_buzzer_open(3100,10);		
+					scrollAdvLinkedList(advListHead, 5, RecvMsg.length,showAdvLinkedList);					
+					printf("coder:%d,%d\n",RecvMsg.length,index_menu);
+				}break;
+										
+				
+									
+				default:break;
+			}
+		}
+
+    }
+	return 0;
+}
+
+
+
 const char *voidPageShowStr = "Function not implemented, please press the back button to return to the main menu!";
 
 static void voidPageDrawBackground(void)
@@ -337,112 +450,13 @@ static void voidPageDrawBackground(void)
   }
 }
 
-void extractLastCharacters(const char *filename, int numChars, char *result) {
-    int length = strlen(filename);
-    if (length <= numChars) {
-        strcpy(result+4, filename);
-    } else {
-        strcpy(result+4, filename + (length - numChars));
-    }
-}
-
-typedef struct Node {
-    char name[50];
-	uint8_t isFile;
-    struct Node* next;
-} Node;
-
-static Node* createNode(const char* name) {
-    Node* newNode = (Node*)malloc(sizeof(Node));
-    strcpy(newNode->name, name);
-    newNode->next = NULL;
-    return newNode;
-}
-
-static void insertNode(Node** head, Node* newNode) {
-    if (*head == NULL) {
-        *head = newNode;
-    } else {
-        Node* current = *head;
-        while (current->next != NULL) {
-            current = current->next;
-        }
-        current->next = newNode;
-    }
-}
-
-static void freeList(Node* head) {
-    Node* current = head;
-    while (current != NULL) {
-        Node* temp = current;
-        current = current->next;
-        free(temp);
-    }
-}
-
-
-static Node* files_scan(char *path, uint16_t *fileNums)
+static void pageFileDrawBackground(fileNode* fileList,uint16_t fileNums)
 {
-    FATFS fs;
-    FILINFO fileInfo;
-    DIR dir;
-    FRESULT res;
-	uint8_t i = 0;
-	
-    Node* head = NULL;
-	if(!use_fatfs_mount(1)) return NULL;
-    // 打开根目录
-    res = f_opendir(&dir, path);
-    if (res != FR_OK) {
-
-        return NULL;
-    }
-	
-	u8g2_SetFont(&u8g2, u8g2_font_t0_11_tr);
-    // 遍历根目录下的所有文件
-
-		while (1)
-		{
-			res = f_readdir(&dir, &fileInfo);
-			if (res != FR_OK || fileInfo.fname[0] == 0) {
-				// 读取目录项失败或者到达目录末尾，退出循环
-				break;
-			}
-			if (fileInfo.fattrib & AM_DIR) {
-				// 是一个目录
-				if (strcmp(fileInfo.fname, ".") != 0 && strcmp(fileInfo.fname, "..") != 0) {
-					Node* newNode = createNode(fileInfo.fname);
-					if(newNode){
-						insertNode(&head, newNode);
-						newNode->isFile = 0;
-					}else
-					{
-						printf("Creat faile\n");
-					}
-				}
-			} else {
-				Node* newNode = createNode(fileInfo.fname);
-				if(newNode){
-					insertNode(&head, newNode);
-					newNode->isFile = 1;
-					*fileNums += 1;
-				}else
-				{
-					printf("Creat faile\n");
-				}
-			}		
-		}
-    // 关闭目录
-    f_closedir(&dir);
-	use_fatfs_mount(0);
-	return head;
-}
-
-static void pageFileDrawBackground(Node* fileList,uint16_t fileNums)
-{
-	Node* pList =  fileList;
+	fileNode* pList =  fileList;
 	uint8_t index = 1;
 	uint8_t total =  fileNums/4+1 - !(fileNums%4);
+	char sc_buff[64];
+	u8g2_SetFont(&u8g2, u8g2_font_t0_11_tr);
 	u8g2_FirstPage(&u8g2);
 	do
 	{
@@ -494,9 +508,9 @@ uint8_t pageFileBrowse(void *user_data){
 	int8_t  coder = 0;
 	static int index_menu = 0;
 	uint16_t maxFileNums = 0;
-    Node* fileList = files_scan("1:", &maxFileNums);
+    fileNode* fileList = files_scan("1:", &maxFileNums);
 	pageFileDrawBackground(fileList,maxFileNums);
-	freeList(fileList);
+	freeFileList(fileList);
 	printf("File:%d\n", maxFileNums);
     for (;;)
     {

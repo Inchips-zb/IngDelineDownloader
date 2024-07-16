@@ -21,12 +21,14 @@ enum{
 	USER_MSG_RTC_S,
 	USER_MSG_BURN_STEP,
 	USER_MSG_BURN_STATE,
+	USER_MSG_BLE_STATE,
+	USER_MSG_BLE_REFRESH,
 	USER_MSG_END
 };
 
-int UserQue_SendMsg(uint32_t msg_id, const void *param, int length);
-int UserQueMsgGet(UserQue_msg_t *Msg);
-void UserQueInit(void);
+extern  int UserQue_SendMsg(uint32_t msg_id, const void *param, int length);
+extern  int UserQueMsgGet(UserQue_msg_t *Msg);
+extern  void UserQueInit(void);
 
 #ifdef __cplusplus
 } /* allow C++ to use these headers */
