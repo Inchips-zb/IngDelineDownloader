@@ -12,26 +12,58 @@
 
 
 #define print_err(fun,line,code) platform_printf("[ERR] %s(%d): %d\n",fun, line, code)
-FATFS fs;                         /* FatFs文件系统对象 */
+FATFS *fs = NULL;                         /* FatFs文件系统对象 */
 
 
-FRESULT use_fatfs_mount(void)
+uint8_t use_fatfs_mount(uint8_t mo)
 {
 
     //f_mount()->find_volume()->disk_initialize->SPI_FLASH_Init()
-    FRESULT res = f_mount(&fs,"1:",1);
- 
-    if (res!=FR_OK)
-    {
-		print_err(__FUNCTION__,__LINE__,res);
-		/*----------------------- 格式化测试 -----------------*/
-		/* 如果没有文件系统就格式化创建创建文件系统 */
-	//if (res == FR_NO_FILESYSTEM) use_fatfs_mkfs();
+	uint8_t res = 0;
+	if(mo){
+		if(NULL == fs)
+			fs = (FATFS*) malloc(sizeof(FATFS));
+		else
+			printf("Fs maybe has exists!");
+		if(NULL == fs)
+			goto END;
+		
+		FRESULT fs_res = f_mount(fs,"1:",1);
+	 
+		if (res!=FR_OK)
+		{
+			free(fs);
+			fs = NULL;
+			print_err(__FUNCTION__,__LINE__,fs_res);
+		}
+		else
+		{
+			res = 1;
+			printf("FATFS Mount ok!\r\n");
+		}		
 	}
-    else
-    {
-        printf("FATFS Mount ok!\r\n");
-    }
+	else
+	{
+
+		if(NULL == fs)
+			goto END;
+		
+		FRESULT fs_res = f_mount(NULL,"1:",1);
+	 
+		if (res!=FR_OK)
+		{
+			print_err(__FUNCTION__,__LINE__,fs_res);
+		}
+		else
+		{
+			free(fs);
+			fs = NULL;
+			res = 1;
+			printf("FATFS remove ok!\r\n");
+		}
+	
+	}
+
 END:
 	return res;
 }
@@ -40,7 +72,7 @@ FRESULT use_fatfs_mkfs(void){
 	/* 格式化 */
 	FRESULT res = FR_INVALID_PARAMETER;
 	BYTE *work = (BYTE *)malloc(FF_MAX_SS);
-	if(NULL == work) goto END;
+	if(NULL == work || NULL == fs) goto END;
 	printf("Start make faftfs!\r\n");
 	res = f_mkfs("1:", NULL, work, FF_MAX_SS);
 	if (res == FR_OK)
@@ -48,7 +80,7 @@ FRESULT use_fatfs_mkfs(void){
 		/* 格式化后，先取消挂载 */
 		res = f_mount(NULL,"1:",1);
 		/* 重新挂载 */
-		res = f_mount(&fs,"1:",1);
+		res = f_mount(fs,"1:",1);
 	}
 	else
 	{
@@ -69,8 +101,8 @@ void load_downloader_cfg(void)
 	char str[100] = {0};
 	char fileName[100];
 	downdloader_cfg_t *cfg = get_downloader_cfg();
-	FRESULT RET = use_fatfs_mount();
-	if(FR_OK != RET) { printf("Fatfs mount fail：(%d)\n",RET); return ; }
+    FRESULT RET;
+	if(!use_fatfs_mount(1)) { printf("Fatfs mount fail\n"); return ; }
     ini_gets("main", "family", "dummy", str, 100, inifile);
 	if(strcmp("ing916",str) == 0)
 	{
@@ -134,7 +166,7 @@ void load_downloader_cfg(void)
 		}
 	
 	}
-	
+    if(!use_fatfs_mount(0)) { printf("Fatfs remove fail\n"); return ; }
 }
 
 
@@ -194,54 +226,4 @@ void listRootDirectoryFiles() {
 
 
 
-void test_spiflash_fafts(void){
-	
-//	static FILINFO fno;
-//	char str[100] = {0};
-
-//	downdloader_cfg_t *cfg = get_downloader_cfg();
-
-//	FRESULT RET = use_fatfs_mount();
-//	  /* value reading */
-//    long n = ini_getl("bin-0", "Address", -1, inifile);
-//	printf("Address:0x%lx\n",n);
-//    n = ini_gets("main", "family", "dummy", str, 100, inifile);
-//  /* browsing through the file */
-//	printf("family:%s\n",str);
-//	
-	
-//	if(FR_OK == RET)
-//	{
-//		RET = f_open(fnew, inifile, FA_OPEN_EXISTING | FA_READ);
-//	        /* 获取文件信息，必须确保文件存在*/
-//        RET = f_stat(inifile,&fno);
-//		printf("file <%s> size %d \r\n",fno.fname, fno.fsize);
-//		if(FR_OK == RET)
-//		{
-//			uint8_t *buffer = (uint8_t *)malloc(fno.fsize+1); 
-//			if(!buffer) return;
-//			RET = f_read(fnew, buffer, fno.fsize, &fnum);
-//			if (RET == FR_OK)
-//			{
-//				*(buffer+fnum) = 0;
-//				
-//				printf("FATFS Read(%d)\r\n%s \r\n", fnum,buffer);
-//				
-//				free(buffer);
-//			}
-//			else
-//			{
-//				printf("！！文件读取失败：(%d)\n",RET);
-//			}
-//	   }
-//	   else
-//	   {
-//			printf("！！文件打开失败：(%d)\n",RET);
-//	   }
-// }
-//		
-//	f_close(fnew);
-//	free(fnew);
-//  
-}
 

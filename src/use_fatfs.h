@@ -7,8 +7,7 @@ extern "C" {
 
 #include <stdint.h>
 #include "ff.h" 
-FRESULT use_fatfs_mount(void);
-FRESULT use_fatfs_mkfs(void);
+uint8_t use_fatfs_mount(uint8_t mo);
 
 extern void load_downloader_cfg(void);
 extern void listRootDirectoryFiles();

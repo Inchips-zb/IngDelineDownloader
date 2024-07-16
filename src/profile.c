@@ -4,7 +4,7 @@
 #include "gap.h"
 #include "btstack_event.h"
 #include "btstack_defines.h"
-
+#include "ota_service.h"
 // GATT characteristic handles
 #include "../data/gatt.const"
 
@@ -24,6 +24,9 @@ const static uint8_t profile_data[] = {
     #include "../data/gatt.profile"
 };
 
+
+// 应用版本管理
+prog_ver_t prog_ver = { .major = 1, .minor = 0, .patch = 1 };
 static uint16_t att_read_callback(hci_con_handle_t connection_handle, uint16_t att_handle, uint16_t offset,
                                   uint8_t * buffer, uint16_t buffer_size)
 {
@@ -41,7 +44,7 @@ static uint16_t att_read_callback(hci_con_handle_t connection_handle, uint16_t a
         if (buffer)
         {
             // add your code
-            return buffer_size;
+            return ota_read_callback(connection_handle, att_handle, offset, buffer, buffer_size);;
         }
         else
             return 1; // TODO: return required buffer size
@@ -49,7 +52,7 @@ static uint16_t att_read_callback(hci_con_handle_t connection_handle, uint16_t a
         if (buffer)
         {
             // add your code
-            return buffer_size;
+            return ota_read_callback(connection_handle, att_handle, offset, buffer, buffer_size);;
         }
         else
             return 1; // TODO: return required buffer size
@@ -69,10 +72,11 @@ static int att_write_callback(hci_con_handle_t connection_handle, uint16_t att_h
         return 0;
     case HANDLE_FOTA_CONTROL:
         // add your code
-        return 0;
+        return ota_write_callback(connection_handle, att_handle, transaction_mode, offset, buffer, buffer_size);
+    
     case HANDLE_FOTA_DATA:
         // add your code
-        return 0;
+        return ota_write_callback(connection_handle, att_handle, transaction_mode, offset, buffer, buffer_size);
 
     default:
         return 0;

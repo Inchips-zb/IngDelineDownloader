@@ -8,20 +8,38 @@
 #include "uart_driver.h"  
 #include "use_fatfs.h" 
 #include "bsp_buzzer.h"
-#include "image.h"
+#include "bmp.h"
 #include <string.h>
+
 u8g2_t u8g2;        //显示器初始化结构体
 
 #define BEER_FREQ_KEY_BACK   	2600
 #define BEER_FREQ_KEY_CONFIRM   2900
 #define BEER_FREQ_KEY_PSH       3100
 
+typedef struct 
+{
+	char menuName[10];
+	const bmp_t *pBmp;
+}menu_struct_t;
+
+const menu_struct_t stMenu[] = {
+									{"BURN",&bmpBurn},
+									{"CLOCK",&bmpClock},
+									{"FILES",&bmpFiles},
+									{"SET",&bmpSet},
+									{"ERASE",&bmpErase},
+									{"BLE",&bmpBle},
+								};
+
+#define  MENU_NUMS  (sizeof(stMenu)/sizeof(stMenu[0]))
+	
 static void drawLog(u8g2_t *u8g2)
 {
 #define START_X (0)
 #define START_Y (1)
 	
-	u8g2_DrawXBMP(u8g2, 0, START_Y, 128, 32, logo);
+	u8g2_DrawXBMP(u8g2, 0, START_Y,  bmpIngLogo.xSize,  bmpIngLogo.ySize, bmpIngLogo.pBitmap);
     u8g2_SetFontMode(u8g2, 1); 
     u8g2_SetFontDirection(u8g2, 0);
     u8g2_SetFont(u8g2, u8g2_font_5x7_tr);
@@ -83,7 +101,7 @@ static uint8_t drawProgress(u8g2_t *u8g2,uint8_t progress, char *text)
 
 
 static void burnPageDrawBackground(void)
-	{
+{
 	u8g2_FirstPage(&u8g2);
 	do
 	{
@@ -105,12 +123,18 @@ static void ing_bootloader_trig(void)
      GIO_WriteValue((GIO_Index_t)TRIG_BOOT, 0);
 }
 
+void trig_boot_timerout_cb(void)
+{
+	UserQue_SendMsg(USER_MSG_BURN_STATE,NULL,3);
+}
 
 uint8_t pageBurningDisply(void *user_data)
 {
 	UserQue_msg_t RecvMsg;
 	int8_t  coder = 0;
-
+	uint8_t progress = 0;
+	static uint8_t burning = 0;
+    if(!use_fatfs_mount(1)) return PAGE_SHOW_MAIN;
 	burnPageDrawBackground();
     for (;;)
     {
@@ -123,11 +147,16 @@ uint8_t pageBurningDisply(void *user_data)
 					if(RecvMsg.length & 0x01) {
 						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
 						printf("key back\n");
+						if(burning) break;
+						use_fatfs_mount(0);
 						return PAGE_SHOW_MAIN;
 					}
 					if(RecvMsg.length & 0x06) {
 						apUART_BaudRateSet(APB_UART1,SYSCTRL_GetClk(SYSCTRL_ITEM_APB_UART1),115200);
+						if(burning) break;
 						ing_bootloader_trig();
+						platform_set_timer(trig_boot_timerout_cb,1000/0.625);
+						burning = 1;
 						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
 						printf("key confirm\n");
 					}
@@ -135,23 +164,28 @@ uint8_t pageBurningDisply(void *user_data)
 
 				case USER_MSG_BURN_STEP:{
 	
+					platform_set_timer(trig_boot_timerout_cb,0);
 					u8g2_FirstPage(&u8g2);
 				    do
 				    {
-					  drawProgress(&u8g2,RecvMsg.length,"Burning");
+						progress = RecvMsg.length;
+						drawProgress(&u8g2,progress,"Burning");
 					   
 				    } while (u8g2_NextPage(&u8g2));			
 				}break;
 				
 				case USER_MSG_BURN_STATE:{		
 					printf("ack:%d\n",RecvMsg.length);
+					burning = 0;
 					u8g2_FirstPage(&u8g2);
 				    do
 				    {
 						if(0 == RecvMsg.length)
 							drawProgress(&u8g2,100,"Burn ok");
+						else if (3 == RecvMsg.length)
+							drawProgress(&u8g2,progress,"Burn timerout");
 						else
-							drawProgress(&u8g2,0,"Burn fail");
+							drawProgress(&u8g2,progress,"Burn fail");
 					   
 				    } while (u8g2_NextPage(&u8g2));	
 					burn_cmpl_buzzer_open(3000);
@@ -165,22 +199,7 @@ uint8_t pageBurningDisply(void *user_data)
 }
 
 
-typedef struct 
-{
-	char subMenuName[10];
-	const unsigned char *pMnue;
-	
-}menu_struct_t;
 
-const menu_struct_t stMenu[] = {
-									{"BURN",bmpBurn37x37},
-									{"CLOCK",bmpClock37x37},
-									{"FILES",bmpFiles37x37},
-									{"SET",bmpSet37x37},
-									{"ERASE",bmpErase37x37},
-								};
-
-#define  MENU_NUMS  (sizeof(stMenu)/sizeof(stMenu[0]))
 	
 static void mainPageDrawBackground(uint8_t index,uint8_t x)
 {
@@ -189,14 +208,13 @@ static void mainPageDrawBackground(uint8_t index,uint8_t x)
 	uint8_t last_index = index ? (index-1):(MENU_NUMS-1);
 	uint8_t next_index = (index == (MENU_NUMS-1)) ? (0):(index+1);
 	printf("last:%d,curr:%d.next:%d\n",last_index,index,next_index);
-
 	u8g2_FirstPage(&u8g2);
 	do
 	{
-		u8g2_DrawXBMP(&u8g2, -18+x*9, MAIN_MNUE_START_Y, 37, 37, stMenu[last_index].pMnue);
-		u8g2_DrawXBMP(&u8g2, 45+x*9, MAIN_MNUE_START_Y, 37, 37, stMenu[index].pMnue);
-		u8g2_DrawStr(&u8g2, (128-u8g2_GetStrWidth(&u8g2, stMenu[index].subMenuName))/2+x*9, MAIN_MNUE_START_Y+50, stMenu[index].subMenuName);
-	    u8g2_DrawXBMP(&u8g2, 110+x*9, MAIN_MNUE_START_Y, 37, 37, stMenu[next_index].pMnue);
+		u8g2_DrawXBMP(&u8g2, -18+x*9, MAIN_MNUE_START_Y, stMenu[last_index].pBmp->xSize, stMenu[last_index].pBmp->ySize, stMenu[last_index].pBmp->pBitmap);
+		u8g2_DrawXBMP(&u8g2, 45+x*9, MAIN_MNUE_START_Y, stMenu[index].pBmp->xSize, stMenu[index].pBmp->ySize, stMenu[index].pBmp->pBitmap);
+		u8g2_DrawStr(&u8g2, (128-u8g2_GetStrWidth(&u8g2, stMenu[index].menuName))/2+x*9, MAIN_MNUE_START_Y+50, stMenu[index].menuName);
+	    u8g2_DrawXBMP(&u8g2, 110+x*9, MAIN_MNUE_START_Y, stMenu[next_index].pBmp->xSize, stMenu[next_index].pBmp->ySize, stMenu[next_index].pBmp->pBitmap);
 
 	} while (u8g2_NextPage(&u8g2));
 
@@ -258,7 +276,7 @@ static void uDiskPageDrawBackground(void)
 	u8g2_FirstPage(&u8g2);
 	do
 	{
-		u8g2_DrawXBMP(&u8g2, 40, UDISK_START_Y, 48, 48, bmpUdisk48x48);
+		u8g2_DrawXBMP(&u8g2, 40, UDISK_START_Y, bmpUdisk.xSize, bmpUdisk.ySize, bmpUdisk.pBitmap);
 		u8g2_DrawStr(&u8g2, (128-u8g2_GetStrWidth(&u8g2,"Key BACK reset" ))/2, UDISK_START_Y+60,"Key BACK reset");
 	} while (u8g2_NextPage(&u8g2));
 
@@ -370,7 +388,9 @@ static Node* files_scan(char *path, uint16_t *fileNums)
     DIR dir;
     FRESULT res;
 	uint8_t i = 0;
-   Node* head = NULL;
+	
+    Node* head = NULL;
+	if(!use_fatfs_mount(1)) return NULL;
     // 打开根目录
     res = f_opendir(&dir, path);
     if (res != FR_OK) {
@@ -414,6 +434,7 @@ static Node* files_scan(char *path, uint16_t *fileNums)
 		}
     // 关闭目录
     f_closedir(&dir);
+	use_fatfs_mount(0);
 	return head;
 }
 
@@ -464,7 +485,7 @@ static void pageFileDrawBackground(Node* fileList,uint16_t fileNums)
 			pList = pList->next;
 		}
 	} while (u8g2_NextPage(&u8g2));
-	freeList(fileList);
+	
 }
 
 uint8_t pageFileBrowse(void *user_data){
@@ -475,6 +496,7 @@ uint8_t pageFileBrowse(void *user_data){
 	uint16_t maxFileNums = 0;
     Node* fileList = files_scan("1:", &maxFileNums);
 	pageFileDrawBackground(fileList,maxFileNums);
+	freeList(fileList);
 	printf("File:%d\n", maxFileNums);
     for (;;)
     {

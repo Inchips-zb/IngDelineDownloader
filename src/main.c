@@ -214,7 +214,10 @@ static void u8g2_task(void *pdata)
 			{        
 				page_index = eraseMainDisply(NULL);
 			}break;		
-			
+			case PAGE_SHOW_BLE:
+			{        
+				page_index = pageVoidDisply(NULL);
+			}break;		
 			default:break;
 		}
 	}

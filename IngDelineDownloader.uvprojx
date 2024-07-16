@@ -439,11 +439,6 @@
               <FilePath>.\src\gui_menu.c</FilePath>
             </File>
             <File>
-              <FileName>ing_logo.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>.\src\ing_logo.c</FilePath>
-            </File>
-            <File>
               <FileName>qspi_flash.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\qspi_flash.c</FilePath>
@@ -477,6 +472,16 @@
               <FileName>uart_buner.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\src\uart_buner.c</FilePath>
+            </File>
+            <File>
+              <FileName>ota_service.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\ota_service.c</FilePath>
+            </File>
+            <File>
+              <FileName>bmp.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\bmp.c</FilePath>
             </File>
           </Files>
         </Group>
