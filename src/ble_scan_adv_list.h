@@ -7,15 +7,15 @@ extern "C" {	/* allow C++ to use these headers */
 #include "ingsoc.h"
 
 typedef struct advNode {
-  char name[32];
-  uint8_t address[6];
-  int8_t rssi;
-  struct advNode* next;
+	struct advNode* next;
+	char name[32];
+	uint8_t address[6];
+	int8_t rssi;
 } advNode;
 
 typedef struct advLinkedList {
-  advNode* head;
-  advNode* tail;
+	advNode* head;
+	advNode* tail;
 } advLinkedList;
 
 typedef void (* f_list_printf)(advNode* startNode,uint8_t showNums,uint16_t total);

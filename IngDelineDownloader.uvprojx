@@ -603,6 +603,11 @@
               <FileType>1</FileType>
               <FilePath>..\..\sdk\src\Tools\ad_parser.c</FilePath>
             </File>
+            <File>
+              <FileName>malloc_override.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\sdk\src\Tools\malloc_override.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

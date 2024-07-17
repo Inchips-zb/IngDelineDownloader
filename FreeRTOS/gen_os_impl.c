@@ -203,7 +203,7 @@ void vApplicationGetTimerTaskMemory(StaticTask_t **ppxTimerTaskTCBBuffer,
 
 void vApplicationMallocFailedHook(void)
 {
-    platform_raise_assertion(__FILE__, __LINE__);
+    //platform_raise_assertion(__FILE__, __LINE__);
 }
 
 void platform_get_heap_status(platform_heap_status_t *status)

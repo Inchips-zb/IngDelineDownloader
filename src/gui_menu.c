@@ -361,7 +361,7 @@ static void showAdvLinkedList(advNode* startNode,uint8_t showNums,uint16_t total
 			} 
 			else 
 			{
-			  printf("No more nodes\n");
+			  //printf("No more nodes\n");
 				
 			  break;
 			}
@@ -370,16 +370,17 @@ static void showAdvLinkedList(advNode* startNode,uint8_t showNums,uint16_t total
   } while (u8g2_NextPage(&u8g2));
 }
 
-
+#include "platform_api.h"
+extern void platform_get_heap_status(platform_heap_status_t *status);
 uint8_t pageBleDisply(void *user_data)
 {
 	UserQue_msg_t RecvMsg;
-	int8_t  coder = 0;
-	uint8_t ble_state = 0;
-	static int index_menu = 0;
-	
+	platform_heap_status_t status;
+	uint8_t bleNextState = !bleState;
 	advListHead = createAdvLinkedList();
 	scrollAdvLinkedList(advListHead,5,0,showAdvLinkedList);
+	platform_get_heap_status(&status);
+	printf("Mem start:%d,%d\n",status.bytes_free,status.bytes_minimum_ever_free);
     for (;;)
     {
 		if(UserQueMsgGet(&RecvMsg)) 
@@ -397,18 +398,26 @@ uint8_t pageBleDisply(void *user_data)
 					}
 					if(RecvMsg.length & 0x06) {
 						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
-						ble_state = !ble_state;
 						if(advListHead)
-							btstack_push_user_msg(USER_MSG_BLE_STATE_SET, (void *)NULL, ble_state);
-						printf("key confirm\n");
+							btstack_push_user_msg(USER_MSG_BLE_STATE_SET, (void *)NULL, bleNextState);
+						printf("key confirm:%d\n",bleNextState);
 					}
 				}break;
 	
 				case USER_MSG_BLE_STATE:
+				{
+					if(0 == RecvMsg.length)
+					{
+						bleState = bleNextState;
+						bleNextState = !bleNextState;
+						
+						scrollAdvLinkedList(advListHead,5,0,showAdvLinkedList);	
+					}
+				}break;
 				case USER_MSG_BLE_REFRESH:{
 					if(0 == RecvMsg.length)
 					{
-						bleState = ble_state;
+						//printf("Mem:%d,%d\n",status.bytes_free,status.bytes_minimum_ever_free);
 						scrollAdvLinkedList(advListHead,5,0,showAdvLinkedList);	
 					}
 				}break;
@@ -416,7 +425,7 @@ uint8_t pageBleDisply(void *user_data)
 				case USER_MSG_CODER:{
 					key_coder_buzzer_open(3100,10);		
 					scrollAdvLinkedList(advListHead, 5, RecvMsg.length,showAdvLinkedList);					
-					printf("coder:%d,%d\n",RecvMsg.length,index_menu);
+					printf("coder:%d\n",RecvMsg.length);
 				}break;
 										
 				
