@@ -25,8 +25,8 @@ extern size_t xPortGetFreeHeapSize( void );//define at heap_4.c
 int addAdvNode(advLinkedList* list, char* name, uint8_t* address,int8_t rssi) {
 	advNode* currentNode = list->head;
 	  // 创建并添加新节点
-	//if(4096 >= xPortGetFreeHeapSize()) return 1;
-	if(totalNodes>8) return 1;
+	if(4096 >= xPortGetFreeHeapSize()) return 1;
+
 	if(!list || !address) return -1;
 	advNode* newNode = (advNode*)malloc(sizeof(advNode));
 	if( !newNode) return -2;

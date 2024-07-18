@@ -144,7 +144,7 @@ void load_downloader_cfg(void)
 		sprintf(sect,"bin-%d",i);
 		
 		cfg->mate.blocks[i].check = (int)ini_getl(sect, "Checked", -1, inifile);	
-		if(cfg->mate.blocks[i].check)
+		if(1 == cfg->mate.blocks[i].check)
 		{
 			cfg->mate.block_num += 1;
 			cfg->mate.blocks[i].loadaddr = (uint32_t)ini_getl(sect, "Address", -1, inifile);	

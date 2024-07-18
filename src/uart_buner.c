@@ -289,7 +289,7 @@ static void uart_buner_task_entry(void *_)
 				burn_ctrl_restart(&ing_buner);
 				for(ing_buner.binIndex = 0;ing_buner.binIndex < BURN_BIN_NUM_MAX;ing_buner.binIndex++)
 				{
-					if(downdloader.mate.blocks[ing_buner.binIndex].check)
+					if(1 == downdloader.mate.blocks[ing_buner.binIndex].check)
 					{
 						memcpy(&ing_buner.block,&downdloader.mate.blocks[ing_buner.binIndex],sizeof(burn_block_t));
 						break;
@@ -348,7 +348,7 @@ static void uart_buner_task_entry(void *_)
 							ing_buner.binIndex += 1;
 							for(;ing_buner.binIndex < BURN_BIN_NUM_MAX; ing_buner.binIndex++)
 							{
-								if(downdloader.mate.blocks[ing_buner.binIndex].check)
+								if(1 == downdloader.mate.blocks[ing_buner.binIndex].check)
 								{
 									memcpy(&ing_buner.block,&downdloader.mate.blocks[ing_buner.binIndex],sizeof(burn_block_t));
 									break;

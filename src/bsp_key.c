@@ -47,6 +47,7 @@ static uint32_t gpio_isr(void *user_data)
         v |= 4;
 //   printf("back:%d,%d\r\n",GIO_GetIntStatus(KB_KEY_BACK),GIO_ReadValue(KB_KEY_BACK));
 //   printf("conf:%d,%d\r\n",GIO_GetIntStatus(KB_KEY_CONFIRM),GIO_ReadValue(KB_KEY_CONFIRM));
+//      printf("psh:%d,%d\r\n",GIO_GetIntStatus(KB_KEY_PSH),GIO_ReadValue(KB_KEY_PSH));
    if(v) UserQue_SendMsg(USER_MSG_KEY,NULL,v);
 
     GIO_ClearAllIntStatus();
