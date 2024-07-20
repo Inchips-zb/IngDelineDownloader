@@ -488,6 +488,11 @@
               <FileType>1</FileType>
               <FilePath>.\src\ble_scan_adv_list.c</FilePath>
             </File>
+            <File>
+              <FileName>device_info.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\device_info.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

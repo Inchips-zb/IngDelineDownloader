@@ -96,7 +96,7 @@ END:
 }
 
 
-const char inifile[] = "1:flash_download.ini";
+const char inifile[] = "1:/918x/flash_download.ini";
 void extractFileName(const char *filepath, char *filename);
 void load_downloader_cfg(void)
 {
@@ -117,14 +117,20 @@ void load_downloader_cfg(void)
 	    cfg->family = INGCHIPS_FAMILY_918;
 		cfg->mate.sector_size = 8192;
 		cfg->mate.page_size = 8192;
+		
 	}
 	else
 	{
 		cfg->family = 0xff;
 	}
-	
+	platform_printf("Chips family:%d\r\n",cfg->family);
 	cfg->verify = (int)ini_getl("options", "verify", -1, inifile);
+	
+	cfg->set_entry =  (int)ini_getl("options", "set-entry", -1, inifile);
+	cfg->entry_addr = (uint32_t)ini_getl("options", "entry", 0, inifile);
+	platform_printf("entry:%x\r\n",cfg->entry_addr);
 	cfg->protect_enable = (int)ini_getl("options", "protection.enabled", -1, inifile);
+	
 	cfg->un_lock = (int)ini_getl("options", "protection.unlock", -1, inifile);
 	cfg->timerout = (uint32_t)ini_getl("uart", "Timeout", -1, inifile);
 	cfg->baud = (uint32_t)ini_getl("uart", "Baud", 115200, inifile);
@@ -151,7 +157,7 @@ void load_downloader_cfg(void)
 		    ini_gets(sect, "FileName", "dummy", str, 100, inifile);
 			extractFileName(str,fileName);
 		    FILINFO fno;
-			sprintf(cfg->mate.blocks[i].filename,"1:%s",fileName);
+			sprintf(cfg->mate.blocks[i].filename,"1:/918x/%s",fileName);
 			RET = f_stat(cfg->mate.blocks[i].filename,&fno);
 			if(FR_OK == RET)
 			{

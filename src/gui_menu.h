@@ -23,6 +23,7 @@ enum{
 	PAGE_SHOW_END
 };
 
+
 extern u8g2_t u8g2;  
 
 extern uint8_t pageDrowLogDisply(void *user_data);	
@@ -31,7 +32,7 @@ extern uint8_t pageClockDisply(void *user_data);
 extern uint8_t pageBurningDisply(void *user_data);
 extern uint8_t pageMainDisply(void *user_data);
 extern uint8_t eraseMainDisply(void *user_data);
-extern uint8_t pageVoidDisply(void *user_data);
+extern uint8_t pageSetDisply(void *user_data);
 extern uint8_t pageFileBrowse(void *user_data);
 extern uint8_t pageUdiskDisply(void *user_data);
 extern uint8_t pageBleDisply(void *user_data);

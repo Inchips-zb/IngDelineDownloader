@@ -6,7 +6,7 @@
 #include "bsp_msg.h"
 #include "FreeRTOS.h"
 #include "task.h"
-
+#include "device_info.h"
 
 #define BUZZ_PIN        GIO_GPIO_6
 volatile uint8_t buzzer_is_buse = 0;
@@ -34,6 +34,8 @@ void setup_buzzer(void)
 
 void set_buzzer_freq(uint16_t freq)
 {
+	dev_info_t *pDev = get_device_informs();
+	if(1 != pDev->beer_en) return;
 	if(freq)
 	{
 		uint32_t pera = PWM_CLOCK_FREQ / freq;

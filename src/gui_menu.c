@@ -13,8 +13,8 @@
 #include "btstack_event.h"
 #include "profile.h"
 #include "ble_scan_adv_list.h"
-
-
+#include "device_info.h"
+#include "btstack_util.h"
 
 u8g2_t u8g2;        //显示器初始化结构体
 
@@ -122,15 +122,15 @@ static void ing_bootloader_trig(void)
      GIO_WriteValue((GIO_Index_t)TRIG_BOOT, 1);
      vTaskDelay(pdMS_TO_TICKS(100));
      GIO_WriteValue((GIO_Index_t)TRIG_RST, 0);
-     vTaskDelay(pdMS_TO_TICKS(10));
+     vTaskDelay(pdMS_TO_TICKS(30));
      GIO_WriteValue((GIO_Index_t)TRIG_RST, 1);
-     vTaskDelay(pdMS_TO_TICKS(10));
+     vTaskDelay(pdMS_TO_TICKS(30));
      GIO_WriteValue((GIO_Index_t)TRIG_BOOT, 0);
 }
 
 void trig_boot_timerout_cb(void)
 {
-	UserQue_SendMsg(USER_MSG_BURN_STATE,NULL,3);
+	UserQue_SendMsg(USER_MSG_BURN_STATE,NULL,BURN_STATE_TIMEROUT);
 }
 
 uint8_t pageBurningDisply(void *user_data)
@@ -160,9 +160,15 @@ uint8_t pageBurningDisply(void *user_data)
 						apUART_BaudRateSet(APB_UART1,SYSCTRL_GetClk(SYSCTRL_ITEM_APB_UART1),115200);
 						if(burning) break;
 						ing_bootloader_trig();
-						platform_set_timer(trig_boot_timerout_cb,1000/0.625);
+						platform_set_timer(trig_boot_timerout_cb,2000/0.625);
 						burning = 1;
 						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+						u8g2_FirstPage(&u8g2);
+						do
+						{
+							drawProgress(&u8g2,0,"Burning");
+						   
+						} while (u8g2_NextPage(&u8g2));
 						printf("key confirm\n");
 					}
 				}break;
@@ -180,18 +186,37 @@ uint8_t pageBurningDisply(void *user_data)
 				}break;
 				
 				case USER_MSG_BURN_STATE:{		
-					printf("ack:%d\n",RecvMsg.length);
+					printf("states:%d\n",RecvMsg.length);
 					burning = 0;
 					u8g2_FirstPage(&u8g2);
 				    do
 				    {
-						if(0 == RecvMsg.length)
-							drawProgress(&u8g2,100,"Burn ok");
-						else if (3 == RecvMsg.length)
-							drawProgress(&u8g2,progress,"Burn timerout");
-						else
-							drawProgress(&u8g2,progress,"Burn fail");
-					   
+						switch(RecvMsg.length)
+						{
+							case BURN_STATE_OK :{
+								drawProgress(&u8g2,100,"Burn ok");
+							}break;
+							case  BURN_STATE_FLASH_LOCK:{
+								drawProgress(&u8g2,progress,"Flash lock");
+								}break;
+							case  BURN_STATE_TIMEROUT:{
+								drawProgress(&u8g2,progress,"Burn timerout");
+								}break;
+							case  BURN_STATE_MEM_OVER:{
+								 drawProgress(&u8g2,progress,"Mem over");
+								}break;
+							case  BURN_STATE_FILE_ERR:{
+								drawProgress(&u8g2,progress,"Faile err");
+								}break;
+							case  BURN_STATE_NAK:{
+								drawProgress(&u8g2,progress,"Burn noack");
+								}break;
+							case  BURN_STATE_UNKNOW_CMD:{
+								drawProgress(&u8g2,progress,"Unknow cmd");
+								}break;
+							default:drawProgress(&u8g2,progress,"Burn fail");break;
+						} 
+					   progress = 0;
 				    } while (u8g2_NextPage(&u8g2));	
 					burn_cmpl_buzzer_open(3000);
 				}break;				
@@ -326,10 +351,11 @@ uint8_t pageUdiskDisply(void *user_data)
 
 volatile uint8_t bleState = 0;
 
-#define BLE_DISPLAY_START_Y (1)	
+
 
 static void showAdvLinkedList(advNode* startNode,uint8_t showNums,uint16_t total) {
-    advNode* currentNode = startNode;
+#define BLE_DISPLAY_START_Y (1)	   
+	advNode* currentNode = startNode;
 	char sc_buff[64];
 	const bmp_t *pBmp = bleState ? &bmpOn : &bmpOff;
 	u8g2_FirstPage(&u8g2);
@@ -440,25 +466,6 @@ uint8_t pageBleDisply(void *user_data)
 
 
 
-const char *voidPageShowStr = "Function not implemented, please press the back button to return to the main menu!";
-
-static void voidPageDrawBackground(void)
-{
-	const char *p = voidPageShowStr;
-    for (;;)
-    {
-		u8g2_FirstPage(&u8g2);
-		do
-		{
-			if('\0' == *p) p = voidPageShowStr;
-			u8g2_DrawStr(&u8g2, 0, 30 , p++);
-
-		} while (u8g2_NextPage(&u8g2));
-		vTaskDelay(pdMS_TO_TICKS(200));
-
-  }
-}
-
 static void pageFileDrawBackground(fileNode* fileList,uint16_t fileNums)
 {
 	fileNode* pList =  fileList;
@@ -554,27 +561,77 @@ uint8_t pageFileBrowse(void *user_data){
     }
 	return 0;
 }
-uint8_t pageVoidDisply(void *user_data)
+
+typedef struct setPage_s
+{
+	uint8_t id;
+	char itemName[20];	
+	uint8_t type;
+} setPage_t;
+
+const setPage_t setPage[] = {
+
+	{0,"Beer",0},
+	{1,"Mac", 1},
+	{2,"Name",1},
+	{3,"Ver",1},
+};
+static void setPageDrawBackground(dev_info_t dev,uint8_t sel)
+{
+	char sc_buff[64];
+	const bmp_t *pBmpOnOff;
+#define SET_DISPLAY_START_Y (1)	
+#define SET_DISPLAY_START_X (4)	
+#define	SET_SPACING	(2)		
+#define SET_BOX_WIDTH	(128)	
+#define SET_BOX_HEIGHT	(16)	
+	
+	u8g2_FirstPage(&u8g2);
+	do
+	{
+		
+		for(uint8_t i = 0; i< sizeof(setPage)/sizeof(setPage[0]);i++){
+			
+			int len = sprintf(sc_buff,"%s",setPage[i].itemName);
+			if(0 == setPage[i].type)
+			{
+				pBmpOnOff = dev.beer_en ? &bmpOn : &bmpOff;
+				u8g2_DrawXBMP(&u8g2, 128-SET_DISPLAY_START_X-pBmpOnOff->xSize,  SET_BOX_HEIGHT*i+SET_DISPLAY_START_Y,pBmpOnOff->xSize, pBmpOnOff->ySize, pBmpOnOff->pBitmap);
+			}
+			else
+			{
+				if(i == 1){
+					sprintf(sc_buff+len,": %s",bd_addr_to_str(dev.mac));
+				}else if(i == 2)
+				{
+					sprintf(sc_buff+len,": %s",dev.blename);
+				}else if(i == 3)
+				{
+					sprintf(sc_buff+len,": %d.%d.%d",dev.ver.major,dev.ver.minor,dev.ver.patch);
+				}
+	
+			}
+			if(i == sel)
+				u8g2_DrawRFrame(&u8g2,0, SET_BOX_HEIGHT*i+SET_DISPLAY_START_Y-1, SET_BOX_WIDTH, SET_BOX_HEIGHT,SET_BOX_HEIGHT/2);
+			
+			u8g2_DrawStr(&u8g2, SET_DISPLAY_START_X, SET_BOX_HEIGHT*i+ SET_DISPLAY_START_Y+10,sc_buff);
+		}
+		
+	} while (u8g2_NextPage(&u8g2));
+
+}
+uint8_t pageSetDisply(void *user_data)
 {
 	UserQue_msg_t RecvMsg;
 	int8_t  coder = 0;
 	static int index_menu = 0;
-	u8g2_SetFont(&u8g2, u8g2_font_amstrad_cpc_extended_8r);
-	//voidPageDrawBackground();
-	const char *p = voidPageShowStr;
+    dev_info_t *pDev = get_device_informs();
+	dev_info_t tDevice;
+	memcpy(&tDevice,pDev,sizeof(dev_info_t));
+	u8g2_SetFont(&u8g2, u8g2_font_spleen5x8_mf);
+	setPageDrawBackground(tDevice,0);
     for (;;)
     {
-		{
-			u8g2_FirstPage(&u8g2);
-			do
-			{
-				if('\0' == *p) p = voidPageShowStr;
-				u8g2_DrawStr(&u8g2, 0, 30 , p++);
-
-			} while (u8g2_NextPage(&u8g2));
-			vTaskDelay(pdMS_TO_TICKS(100));
-
-		}
 		if(UserQueMsgGet(&RecvMsg)) 
 		{
 			switch(RecvMsg.msg_id){
@@ -582,20 +639,26 @@ uint8_t pageVoidDisply(void *user_data)
 				case USER_MSG_KEY:{
 					
 					if(RecvMsg.length & 0x01) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
-						return (PAGE_SHOW_MAIN);
 						printf("key back\n");
+						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+						memcpy(pDev,&tDevice,sizeof(dev_info_t));
+						storage_device_informs();
+						return (PAGE_SHOW_MAIN);
 					}
 					if(RecvMsg.length & 0x06) {
 						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
-						
+						tDevice.beer_en = !tDevice.beer_en;
+						setPageDrawBackground(tDevice,coder);
 						printf("key confirm\n");
 					}
 				}break;
 				
 				case USER_MSG_CODER:{
-					key_coder_buzzer_open(3100,10);						
-					printf("coder:%d,%d\n",RecvMsg.length,index_menu);
+					key_coder_buzzer_open(3100,10);		
+					coder += RecvMsg.length;
+					coder = (coder)%(sizeof(setPage)/sizeof(setPage[0]));
+					setPageDrawBackground(tDevice,coder);
+					printf("coder:%d\n",coder);
 				}break;
 								
 				default:break;

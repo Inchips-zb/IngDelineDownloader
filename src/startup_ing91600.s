@@ -67,14 +67,18 @@ __Vectors_Size  EQU     __Vectors_End - __Vectors
 Reset_Handler   PROC
                 EXPORT  Reset_Handler
                 IMPORT  __scatterload
-
+				IMPORT  init_memory
                 ; this push is consumed by main
                 PUSH    {R1, LR}
 
                 ; save msp
                 MRS     R1, MSP
                 MSR     PSP, R1
+              
 
+				LDR     R0, =init_memory
+                BLX     R0
+				
                 LDR     R0, =__scatterload
                 BX      R0
                 

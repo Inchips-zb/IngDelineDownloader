@@ -5,20 +5,23 @@
 #include "port_gen_os_driver.h"
 #include "platform_api.h"
 
-
+#define DCACHE_RAM_SIZE 8192 // RAM的大小，单位为字节
 #define GEN_OS          ((const gen_os_driver_t *)platform_get_gen_os_driver())
 
 #ifndef UART_TX_BUFF_SIZE
-#define UART_TX_BUFF_SIZE         (1024)  // must be 2^n
+#define UART_TX_BUFF_SIZE         (DCACHE_RAM_SIZE)  // must be 2^n
 #endif
 #ifndef UART_RX_BUFF_SIZE
 #define UART_RX_BUFF_SIZE         (128)  // must be 2^n
 #endif
 #define UART_TX_BUFF_SIZE_MASK   (UART_TX_BUFF_SIZE-1)
 
+
+uint8_t RAM_D[DCACHE_RAM_SIZE] __attribute__((section(".ARM.__at_0x2000E000")));
+
 typedef struct
 {
-    uint8_t           tx_buffer[UART_TX_BUFF_SIZE];
+    uint8_t           *tx_buffer;
     uint8_t           rx_buffer[UART_RX_BUFF_SIZE];    
     uint16_t          write_next;
     uint16_t          read_next;
@@ -173,7 +176,7 @@ void uart_driver_init(UART_TypeDef *port, void *user_data, f_uart_rx_bytes rx_by
     ctx.port = port;
     ctx.rx_bytes_cb = rx_bytes_cb;
     ctx.user_data = user_data;
-
+	ctx.tx_buffer = RAM_D;
     GEN_OS->task_create("uart",
                         uart_driver_task,
                         &ctx,
@@ -201,7 +204,6 @@ static void config_comm_uart(uint32_t freq, uint32_t baud)
     config.txfifo_waterlevel = 7;
     config.ClockFrequency    = freq;
     config.BaudRate          = baud;
-
     apUART_Initialize(COMM_UART_PORT, &config, (1 << bsUART_TRANSMIT_INTENAB) | (1 << bsUART_RECEIVE_INTENAB) | (1 << bsUART_TIMEOUT_INTENAB));
     platform_printf("comm baud colck:%d,baud:%d\n",freq,baud);
 }

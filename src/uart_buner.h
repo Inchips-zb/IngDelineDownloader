@@ -30,6 +30,8 @@ typedef struct downdloader_cfg
     int  protect_enable;    
     int  un_lock;
     int  sn_burn_enable;
+	int  set_entry;
+	uint32_t entry_addr;
     uint8_t  sn_code_len;
     uint32_t sn_code_addr;
     uint32_t sn_start;
@@ -38,6 +40,17 @@ typedef struct downdloader_cfg
 } downdloader_cfg_t;
 
 #pragma pack (pop)
+
+enum{
+	BURN_STATE_OK = 0,
+	BURN_STATE_FLASH_LOCK,
+	BURN_STATE_TIMEROUT,
+	BURN_STATE_MEM_OVER,
+    BURN_STATE_FILE_ERR,
+	BURN_STATE_NAK,
+	BURN_STATE_UNKNOW_CMD,
+	BURN_STATE_VOID
+};
 
 extern  void uart_buner_rx_data(const char *d, uint8_t len,uint8_t cmpl);
 extern  void uart_buner_start(void);

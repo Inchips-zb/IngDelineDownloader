@@ -21,6 +21,8 @@
 #include "bsp_buzzer.h"
 #include "uart_driver.h" 
 #include "uart_buner.h"
+#include "eflash.h"
+#include "device_info.h"
 #include "../data/setup_soc.cgen"
 
 static uint32_t cb_hard_fault(hard_fault_info_t *info, void *_)
@@ -135,6 +137,10 @@ static const platform_evt_cb_table_t evt_cb_table =
     }
 };
 
+void init_memory(void)
+{
+    SYSCTRL_CacheControl(SYSCTRL_MEM_BLOCK_AS_CACHE, SYSCTRL_MEM_BLOCK_AS_SYS_MEM);
+}
 
 static void setupBurnTrigIo(void)
 {
@@ -165,6 +171,7 @@ static void u8g2_task(void *pdata)
 	    platform_printf("INIT USB\n");
 	}
 #endif
+	load_device_informs();
 	platform_enable_irq(PLATFORM_CB_IRQ_GPIO0,1);//enable key isr
 	uart_buner_start();
 	uart_driver_init(APB_UART1, NULL, uart_buner_rx_data);
@@ -207,7 +214,7 @@ static void u8g2_task(void *pdata)
 			
 			case PAGE_SHOW_SET:
 			{        
-				page_index = pageVoidDisply(NULL);
+				page_index = pageSetDisply(NULL);
 			}break;		
 			
 			case PAGE_SHOW_ERASE:
@@ -223,6 +230,7 @@ static void u8g2_task(void *pdata)
 	}
 }
 
+
 // TODO: add RTOS source code to the project.
 uintptr_t app_main()
 {
@@ -237,12 +245,12 @@ uintptr_t app_main()
     platform_config(PLATFORM_CFG_DEEP_SLEEP_TIME_REDUCTION, 4500);
 #endif
     setup_peripherals();    
-
+ //   
 	UserQueInit();
 	
     xTaskCreate(u8g2_task, 
 				"u8g2", 
-				configMINIMAL_STACK_SIZE*3, 
+				configMINIMAL_STACK_SIZE*2, 
 				NULL,
 				5, 
 				NULL);  	
