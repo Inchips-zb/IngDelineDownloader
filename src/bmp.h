@@ -25,6 +25,8 @@ extern const bmp_t  bmpBle;
 extern const bmp_t  bmpUdisk;
 extern const bmp_t  bmpOff;
 extern const bmp_t  bmpOn;
+extern const bmp_t  bmpFile;
+extern const bmp_t  bmpFolder;
 #ifdef __cplusplus
 } /* allow C++ to use these headers */
 #endif	/* __cplusplus */

@@ -15,7 +15,7 @@ typedef struct fileNode {
 } fileNode;
 
 extern uint8_t use_fatfs_mount(uint8_t mo);
-extern void load_downloader_cfg(void);
+extern void load_downloader_cfg(const char *inifile);
 extern void listRootDirectoryFiles();
 extern fileNode* files_scan(char *path, uint16_t *fileNums);
 extern void freeFileList(fileNode* head);

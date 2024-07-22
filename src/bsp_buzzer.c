@@ -32,7 +32,7 @@ void setup_buzzer(void)
 
 
 
-void set_buzzer_freq(uint16_t freq)
+static void set_buzzer_freq(uint16_t freq)
 {
 	dev_info_t *pDev = get_device_informs();
 	if(1 != pDev->beer_en) return;

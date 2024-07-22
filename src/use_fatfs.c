@@ -96,9 +96,10 @@ END:
 }
 
 
-const char inifile[] = "1:/918x/flash_download.ini";
+//const char inifile[] = "1:/918x/flash_download.ini";
+void extractFolderPath(const char* filePath, char* folderPath);
 void extractFileName(const char *filepath, char *filename);
-void load_downloader_cfg(void)
+void load_downloader_cfg(const char *inifile)
 {
 	char str[100] = {0};
 	char fileName[100];
@@ -157,7 +158,8 @@ void load_downloader_cfg(void)
 		    ini_gets(sect, "FileName", "dummy", str, 100, inifile);
 			extractFileName(str,fileName);
 		    FILINFO fno;
-			sprintf(cfg->mate.blocks[i].filename,"1:/918x/%s",fileName);
+			extractFolderPath(inifile,str);
+			sprintf(cfg->mate.blocks[i].filename,"%s/%s",str,fileName);
 			RET = f_stat(cfg->mate.blocks[i].filename,&fno);
 			if(FR_OK == RET)
 			{
@@ -191,7 +193,16 @@ void extractFileName(const char *filepath, char *filename) {
 }
 
 
-
+void extractFolderPath(const char* filePath, char* folderPath) {
+    char* lastSlash = strrchr(filePath, '/');
+    if (lastSlash != NULL) {
+        size_t pathLength = lastSlash - filePath + 1;
+        strncpy(folderPath, filePath, pathLength);
+        folderPath[pathLength] = '\0';
+    } else {
+        strcpy(folderPath, "");  // 如果未找到斜杠字符，将文件夹路径设置为空字符串
+    }
+}
 
 fileNode* createFileNode(const char* name) {
     fileNode* newNode = (fileNode*)malloc(sizeof(fileNode));
@@ -251,10 +262,12 @@ fileNode* files_scan(char *path, uint16_t *fileNums)
 			if (fileInfo.fattrib & AM_DIR) {
 				// 是一个目录
 				if (strcmp(fileInfo.fname, ".") != 0 && strcmp(fileInfo.fname, "..") != 0) {
+					if(0 == strcasecmp(fileInfo.fname,"System Volume Information")) continue;
 					fileNode* newNode = createFileNode(fileInfo.fname);
 					if(newNode){
 						insertFileNode(&head, newNode);
 						newNode->isFile = 0;
+						*fileNums += 1;
 					}else
 					{
 						printf("Creat faile\n");

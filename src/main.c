@@ -163,7 +163,7 @@ static void u8g2_task(void *pdata)
 	if((1 == GIO_ReadValue(KB_KEY_PSH)))
 	{
 	    page_index = PAGE_SHOW_LOG;
-		load_downloader_cfg();
+		//load_downloader_cfg();
 	}
 	else{
 		page_index = PAGE_SHOW_UDISK;
@@ -245,12 +245,12 @@ uintptr_t app_main()
     platform_config(PLATFORM_CFG_DEEP_SLEEP_TIME_REDUCTION, 4500);
 #endif
     setup_peripherals();    
- //   
+
 	UserQueInit();
 	
     xTaskCreate(u8g2_task, 
 				"u8g2", 
-				configMINIMAL_STACK_SIZE*2, 
+				configMINIMAL_STACK_SIZE*3, 
 				NULL,
 				5, 
 				NULL);  	

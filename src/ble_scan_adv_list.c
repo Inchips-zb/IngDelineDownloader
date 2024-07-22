@@ -134,8 +134,8 @@ void scrollAdvLinkedList(advLinkedList* list,uint8_t showNums, int steps,f_list_
 void extractLastCharacters(const char *src, int numChars, char *result) {
     int length = strlen(src);
     if (length <= numChars) {
-        strcpy(result+4, src);
+        strcpy(result, src);
     } else {
-        strcpy(result+4, src + (length - numChars));
+        strcpy(result, src + (length - numChars));
     }
 }

@@ -133,14 +133,90 @@ void trig_boot_timerout_cb(void)
 	UserQue_SendMsg(USER_MSG_BURN_STATE,NULL,BURN_STATE_TIMEROUT);
 }
 
+static fileNode* pageFileSerch(fileNode* fileList,uint16_t fileNums,uint16_t sel)
+{
+	fileNode* pList =  fileList;
+	fileNode* rpList  = NULL;
+	uint8_t index = 1;
+	const bmp_t *pBmp;
+	uint8_t total =  fileNums/3+1 - !(fileNums%3);
+	char sc_buff[64];
+	u8g2_SetFont(&u8g2, u8g2_font_t0_11_tr);
+	u8g2_FirstPage(&u8g2);
+	do
+	{
+
+		u8g2_DrawStr(&u8g2, 1, 60,"<");
+		u8g2_DrawStr(&u8g2, 120, 60,">");
+		
+		sprintf(sc_buff,"%d/%d",index, total);	
+		u8g2_DrawStr(&u8g2, 50, 60,sc_buff);
+
+		if(NULL == fileList || 0 == fileNums)
+		{
+			u8g2_DrawStr(&u8g2, 1, 30,"No files ");
+			return NULL;
+	
+		}
+		while (pList != NULL) {
+			
+			if(0 == pList->isFile){
+				pBmp = &bmpFolder;
+			}else
+			{
+				pBmp = &bmpFile;
+			}
+			
+			if(strlen(pList->name) > 10){
+			
+				sc_buff[0] = '.';
+				sc_buff[1] = '.';
+				sc_buff[2] = '.';
+				extractLastCharacters( pList->name,10,sc_buff+3);
+			}
+			else
+			{
+			
+				sprintf(sc_buff,"%s",  pList->name);	
+			}	
+			if(sel == (index-1)){
+				u8g2_DrawStr(&u8g2, 120, index*17-4,"<");
+				rpList = pList;
+			}
+			u8g2_DrawXBMP(&u8g2, 1, (index-1)*17,pBmp->xSize, pBmp->ySize, pBmp->pBitmap);			
+			u8g2_DrawStr(&u8g2, pBmp->xSize+8, index*17-4,sc_buff);
+
+		//	printf("%d,%d:%s,%s\n",sel+1, index,pList->name,sc_buff);
+			index++;
+			if(index > 3) break;
+			pList = pList->next;
+		}
+	} while (u8g2_NextPage(&u8g2));
+	return rpList;
+}
+char file_dir[256];	
+uint8_t fi_offset = 0;
 uint8_t pageBurningDisply(void *user_data)
 {
 	UserQue_msg_t RecvMsg;
+
 	int8_t  coder = 0;
 	uint8_t progress = 0;
+	uint8_t fileReady = 0;
 	static uint8_t burning = 0;
-    if(!use_fatfs_mount(1)) return PAGE_SHOW_MAIN;
-	burnPageDrawBackground();
+	uint16_t maxFileNums = 0;
+	fileNode *subfileList;
+	fileNode *getfileList;
+	fileNode *nowfileList;
+	fi_offset = sprintf(file_dir,"1:");
+    fileNode* fileList = files_scan("1:", &maxFileNums);
+	getfileList = pageFileSerch(fileList,maxFileNums,0);
+	nowfileList = fileList;	
+    if(!use_fatfs_mount(1)) {
+		freeFileList(getfileList);
+		return PAGE_SHOW_MAIN;
+	}
+	
     for (;;)
     {
 		if(UserQueMsgGet(&RecvMsg)) 
@@ -153,22 +229,61 @@ uint8_t pageBurningDisply(void *user_data)
 						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
 						printf("key back\n");
 						if(burning) break;
+						if(getfileList){
+							freeFileList(getfileList);
+							getfileList = NULL;
+						}
+						if(subfileList)
+						{
+							freeFileList(getfileList);
+							getfileList = NULL;
+						}
 						use_fatfs_mount(0);
 						return PAGE_SHOW_MAIN;
 					}
 					if(RecvMsg.length & 0x06) {
 						apUART_BaudRateSet(APB_UART1,SYSCTRL_GetClk(SYSCTRL_ITEM_APB_UART1),115200);
-						if(burning) break;
-						ing_bootloader_trig();
-						platform_set_timer(trig_boot_timerout_cb,2000/0.625);
-						burning = 1;
-						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
-						u8g2_FirstPage(&u8g2);
-						do
+						if(fileReady){
+							if(burning) break;
+							use_fatfs_mount(1);
+							ing_bootloader_trig();
+							platform_set_timer(trig_boot_timerout_cb,2000/0.625);
+							burning = 1;
+							key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+							u8g2_FirstPage(&u8g2);
+							do
+							{
+								drawProgress(&u8g2,0,"Burning");
+							   
+							} while (u8g2_NextPage(&u8g2));
+						}
+						else
 						{
-							drawProgress(&u8g2,0,"Burning");
-						   
-						} while (u8g2_NextPage(&u8g2));
+							    fi_offset += sprintf(file_dir+fi_offset,"/%s",getfileList->name);
+								printf("open:%s\r\n",file_dir);
+							    if((1 == getfileList->isFile) && (0 ==strcasecmp(getfileList->name,"flash_download.ini"))) {
+									
+									if(getfileList){
+										freeFileList(getfileList);
+										getfileList = NULL;
+									}
+									if(subfileList)
+									{
+										freeFileList(getfileList);
+										getfileList = NULL;
+									}
+									fileReady = 1;
+									load_downloader_cfg(file_dir);
+									burnPageDrawBackground();
+									break;
+								}
+					
+								subfileList = files_scan(file_dir, &maxFileNums);
+								nowfileList = subfileList;
+								coder = 0;
+								getfileList = pageFileSerch(nowfileList,maxFileNums,abs(coder));						
+						
+							}
 						printf("key confirm\n");
 					}
 				}break;
@@ -219,6 +334,14 @@ uint8_t pageBurningDisply(void *user_data)
 					   progress = 0;
 				    } while (u8g2_NextPage(&u8g2));	
 					burn_cmpl_buzzer_open(3000);
+				}break;		
+				case USER_MSG_CODER:{
+					key_coder_buzzer_open(3100,10);		
+					coder += RecvMsg.length;	
+			
+                    coder = coder % maxFileNums;		
+					getfileList = pageFileSerch(nowfileList,maxFileNums,abs(coder));					
+					printf("coder:%d,%d\n",RecvMsg.length,coder);
 				}break;				
 				default:break;
 			}
@@ -465,68 +588,18 @@ uint8_t pageBleDisply(void *user_data)
 }
 
 
-
-static void pageFileDrawBackground(fileNode* fileList,uint16_t fileNums)
-{
-	fileNode* pList =  fileList;
-	uint8_t index = 1;
-	uint8_t total =  fileNums/4+1 - !(fileNums%4);
-	char sc_buff[64];
-	u8g2_SetFont(&u8g2, u8g2_font_t0_11_tr);
-	u8g2_FirstPage(&u8g2);
-	do
-	{
-
-		u8g2_DrawStr(&u8g2, 1, 60,"<");
-		u8g2_DrawStr(&u8g2, 120, 60,">");
-		
-		sprintf(sc_buff,"%d/%d",index, total);	
-		u8g2_DrawStr(&u8g2, 50, 60,sc_buff);
-
-		if(NULL == fileList || 0 == fileNums)
-		{
-			u8g2_DrawStr(&u8g2, 1, 30,"No files ");
-	
-		}
-		while (pList != NULL) {
-			
-			if(0 == pList->isFile){
-				pList = pList->next;
-				continue;
-			}
-			
-			if(strlen(pList->name) > 15){
-				sc_buff[0] = '0'+index;
-				sc_buff[1] = ':';
-				sc_buff[2] = ' ';
-				sc_buff[3] = '.';
-
-				extractLastCharacters( pList->name,15,sc_buff);
-			}
-			else
-			{
-			
-				sprintf(sc_buff,"%d: %s",index,  pList->name);	
-			}					
-			u8g2_DrawStr(&u8g2, 1, index*12,sc_buff);
-
-			printf("%d:%s\n", index,pList->name);
-			index++;
-			pList = pList->next;
-		}
-	} while (u8g2_NextPage(&u8g2));
-	
-}
-
 uint8_t pageFileBrowse(void *user_data){
 
 	UserQue_msg_t RecvMsg;
 	int8_t  coder = 0;
 	static int index_menu = 0;
 	uint16_t maxFileNums = 0;
+	fileNode *subfileList;
+	fileNode *getfileList;
+	fileNode *nowfileList;
     fileNode* fileList = files_scan("1:", &maxFileNums);
-	pageFileDrawBackground(fileList,maxFileNums);
-	freeFileList(fileList);
+	getfileList = pageFileSerch(fileList,maxFileNums,0);
+	nowfileList = fileList;
 	printf("File:%d\n", maxFileNums);
     for (;;)
     {
@@ -539,19 +612,42 @@ uint8_t pageFileBrowse(void *user_data){
 					
 					if(RecvMsg.length & 0x01) {
 						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
-						return (PAGE_SHOW_MAIN);
 						printf("key back\n");
+						if(subfileList){
+							freeFileList(subfileList);
+							subfileList = NULL;
+							coder = 0;
+							nowfileList = fileList;
+							getfileList = pageFileSerch(nowfileList,maxFileNums,abs(coder));		
+						}else
+						{
+							freeFileList(fileList);
+							fileList = NULL;
+							return (PAGE_SHOW_MAIN);
+						}
+						
 					}
 					if(RecvMsg.length & 0x06) {
+						char sc_buff[64];
 						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+						printf("key confirm:%d\n",getfileList->isFile);
+						if(1 == getfileList->isFile) break;
+						sprintf(sc_buff,"1:/%s",getfileList->name);
+						subfileList = files_scan(sc_buff, &maxFileNums);
+						nowfileList = subfileList;
+						coder = 0;
+						getfileList = pageFileSerch(nowfileList,maxFileNums,abs(coder));
 						
-						printf("key confirm\n");
 					}
 				}break;
 				
 				case USER_MSG_CODER:{
-					key_coder_buzzer_open(3100,10);						
-					printf("coder:%d,%d\n",RecvMsg.length,index_menu);
+					key_coder_buzzer_open(3100,10);		
+					coder += RecvMsg.length;	
+			
+                    coder = coder % maxFileNums;		
+					getfileList = pageFileSerch(nowfileList,maxFileNums,abs(coder));					
+					printf("coder:%d,%d\n",RecvMsg.length,coder);
 				}break;
 								
 				default:break;
