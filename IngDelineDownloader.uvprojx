@@ -337,9 +337,9 @@
             <v6Rtti>0</v6Rtti>
             <VariousControls>
               <MiscControls>-Wno-invalid-source-encoding</MiscControls>
-              <Define>USE_STDPERIPH_DRIVER,POWER_SAVING,TEST_FAFTS,USE_HARD_IIC</Define>
+              <Define>USE_STDPERIPH_DRIVER,POWER_SAVING,TEST_FAFTS,USE_HARD_IIC,DB_TO_FLASHn,HARD_VERSION=2</Define>
               <Undefine></Undefine>
-              <IncludePath>../../sdk/bundles/noos_mini/inc;../../sdk/bundles/noos_mini/inc/os;../../sdk/src/BSP;../../sdk/src/FWlib;../../sdk/src/StartUP/ing916;../../sdk/src/Tools;../../sdk/src;.\src;.\FreeRTOS;.\FreeRTOS\include;.\FreeRTOS\portable\RVDS\ARM_CM4F;.\FreeRTOS\portable\GCC\ARM_CM4F;.\FATFS\src;.\u8g2\csrc;.\src\minIni-master\dev</IncludePath>
+              <IncludePath>../../sdk/bundles/noos_mini/inc;../../sdk/bundles/noos_mini/inc/os;../../sdk/src/BSP;../../sdk/src/FWlib;../../sdk/src/StartUP/ing916;../../sdk/src/Tools;../../sdk/src;.\src;.\FreeRTOS;.\FreeRTOS\include;.\FreeRTOS\portable\RVDS\ARM_CM4F;.\FreeRTOS\portable\GCC\ARM_CM4F;.\FATFS\src;.\u8g2\csrc;.\src\minIni-master\dev;.\src\eeprom</IncludePath>
             </VariousControls>
           </Cads>
           <Aads>
@@ -897,6 +897,21 @@
               <FileName>ffunicode.c</FileName>
               <FileType>1</FileType>
               <FilePath>.\FATFS\src\ffunicode.c</FilePath>
+            </File>
+          </Files>
+        </Group>
+        <Group>
+          <GroupName>Eeprom</GroupName>
+          <Files>
+            <File>
+              <FileName>at24cxxfunction.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\eeprom\at24cxxfunction.c</FilePath>
+            </File>
+            <File>
+              <FileName>eeprom.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>.\src\eeprom\eeprom.c</FilePath>
             </File>
           </Files>
         </Group>

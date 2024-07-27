@@ -23,6 +23,7 @@
 #include "uart_buner.h"
 #include "eflash.h"
 #include "device_info.h"
+#include "eeprom.h"
 #include "../data/setup_soc.cgen"
 
 static uint32_t cb_hard_fault(hard_fault_info_t *info, void *_)
@@ -80,7 +81,9 @@ void setup_peripherals(void)
 	setup_peripherals_key();
 	setup_buzzer();
 	setupBurnTrigIo();
-
+#if HARD_VERSION == 2	
+    eeprom_init();
+#endif
 }
 
 uint32_t on_lle_init(void *dummy, void *user_data)

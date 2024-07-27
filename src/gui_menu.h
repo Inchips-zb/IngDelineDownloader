@@ -6,10 +6,17 @@
 #include <stdio.h>
 #include "u8g2.h"
 #include "bsp_rtc.h"
+ #if HARD_VERSION == 1
  
 #define TRIG_RST          GIO_GPIO_23
 #define TRIG_BOOT         GIO_GPIO_36
 
+#elif HARD_VERSION == 2
+
+#define TRIG_RST          GIO_GPIO_36
+#define TRIG_BOOT         GIO_GPIO_23
+
+#endif
 enum{
 	PAGE_SHOW_LOG = 0,
 	PAGE_SHOW_MAIN,

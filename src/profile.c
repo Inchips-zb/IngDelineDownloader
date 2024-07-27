@@ -12,6 +12,7 @@
 #include "ad_parser.h"
 #include "string.h"
 #include "kv_storage.h" 
+#include "eeprom.h"
 // GATT characteristic handles
 #include "../data/gatt.const"
 
@@ -236,11 +237,12 @@ static void user_packet_handler(uint8_t packet_type, uint16_t channel, const uin
 
 static btstack_packet_callback_registration_t hci_event_callback_registration;
 #define DB_FLASH_ADDRESS  0x207D000
-
+#define  EPPROM_DATA_DB_ADDR     (0x0)
 int db_write_to_flash(const void *db, const int size)
 {
     platform_printf("write to flash, size = %d\n", size);
     program_flash(DB_FLASH_ADDRESS, (const uint8_t *)db, size);
+
     return KV_OK;
 }
 
@@ -250,12 +252,35 @@ int read_from_flash(void *db, const int max_size)
     return KV_OK;
 }
 
+int db_write_to_eeprom(const void *db, const int size)
+{
+	eeprom_app_writes(&At24C128CMoudle,EPPROM_DATA_DB_ADDR,(uint8_t*)db,size);
+//	platform_printf("write to eeprom, size = %d\n", size);
+//	printf_hexdump(db,size);
+    return KV_OK;
+}
+
+int read_from_eeprom(void *db, const int size)
+{
+	eeprom_app_reads(&At24C128CMoudle,EPPROM_DATA_DB_ADDR,(uint8_t*)db,size);
+//	platform_printf("read to eeprom, size = %d\n", size);
+//	printf_hexdump(db,size);
+    return KV_OK;
+}
 
 uint32_t setup_profile(void *data, void *user_data)
 {
     platform_printf("setup profile\n");
     // Note: security has not been enabled.
+#if HARD_VERSION == 2		
+#ifdef DB_TO_FLASH	
 	kv_init(db_write_to_flash, read_from_flash);
+#else
+	kv_init(db_write_to_eeprom, read_from_eeprom);
+#endif	
+#else
+	kv_init(db_write_to_flash, read_from_flash);
+#endif
     att_server_init(att_read_callback, att_write_callback);
     hci_event_callback_registration.callback = &user_packet_handler;
     hci_add_event_handler(&hci_event_callback_registration);

@@ -198,7 +198,7 @@ void extractFolderPath(const char* filePath, char* folderPath) {
     if (lastSlash != NULL) {
         size_t pathLength = lastSlash - filePath + 1;
         strncpy(folderPath, filePath, pathLength);
-        folderPath[pathLength] = '\0';
+        folderPath[pathLength-1] = '\0';
     } else {
         strcpy(folderPath, "");  // 如果未找到斜杠字符，将文件夹路径设置为空字符串
     }

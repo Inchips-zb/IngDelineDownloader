@@ -487,10 +487,10 @@ static void uart_buner_task_entry(void *_)
                                 uart_buner_tx_data(STR_CMD_CHIP_LOCK,strlen(STR_CMD_CHIP_LOCK),NULL,0);  
                                 ing_buner.uart_burn_step = 6;                                
                             }
-							else
-							{
-								uart_buner_tx_data(STR_CMD_START_JUMP,strlen(STR_CMD_START_JUMP),NULL,0);  
-							}
+//							else
+//							{
+//								uart_buner_tx_data(STR_CMD_START_JUMP,strlen(STR_CMD_START_JUMP),NULL,0);  
+//							}
 							UserQue_SendMsg(USER_MSG_BURN_STATE,NULL,BURN_STATE_OK);
                             platform_printf("Burn complete\r\n");
                 			f_close(fp);
@@ -616,7 +616,7 @@ static void uart_buner_task_entry(void *_)
                     case 6:
                     {   
                         ing_buner.uart_burn_step = 0;
-						uart_buner_tx_data(STR_CMD_START_JUMP,strlen(STR_CMD_START_JUMP),NULL,0);  
+						//uart_buner_tx_data(STR_CMD_START_JUMP,strlen(STR_CMD_START_JUMP),NULL,0);  
                         platform_printf("Lock complete\r\n");
                                 
                     }break;  
@@ -629,7 +629,7 @@ static void uart_buner_task_entry(void *_)
 						else
 						{
 							ing_buner.uart_burn_step = 0;
-							uart_buner_tx_data(STR_CMD_START_JUMP,strlen(STR_CMD_START_JUMP),NULL,0);  
+							//uart_buner_tx_data(STR_CMD_START_JUMP,strlen(STR_CMD_START_JUMP),NULL,0);  
 						}
 					}					
                     default :break;

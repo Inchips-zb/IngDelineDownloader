@@ -15,6 +15,7 @@
 #include "ble_scan_adv_list.h"
 #include "device_info.h"
 #include "btstack_util.h"
+#include "eeprom.h"
 
 u8g2_t u8g2;        //显示器初始化结构体
 
