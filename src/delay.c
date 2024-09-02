@@ -18,8 +18,8 @@ static void nop(uint32_t n)
 
 void delay_us(int us){
 	
-	uint64_t t = platform_get_us_time();
-	while(t + us >  platform_get_us_time())
+	uint64_t t = us + platform_get_us_time();
+	while(t > platform_get_us_time())
 	{
 		__asm volatile ("nop");
 	}
@@ -33,10 +33,11 @@ void delay_ms(int ms){
 }
 
 #else
+
 void delay_ms(int ms){
 
-	uint64_t t = platform_get_us_time();
-	while(t + ms*1000 >  platform_get_us_time())
+	uint64_t t = ms*1000 + platform_get_us_time();
+	while(t > platform_get_us_time())
 	{
 		__asm volatile ("nop");
 	}

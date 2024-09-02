@@ -19,7 +19,7 @@
 
 /* total size of usb disk, the size must be aligned with vector size and cnt */
 #ifndef VFS_TOTAL_MEM_SIZE
-#define VFS_TOTAL_MEM_SIZE MB(16)
+#define VFS_TOTAL_MEM_SIZE MB(8)
 #endif
 
 /* block/sector size of usb disk, for total size of 256M, block size should be 4K.

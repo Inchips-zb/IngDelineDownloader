@@ -22,6 +22,7 @@ uint8_t use_fatfs_mount(uint8_t mo)
 
     //f_mount()->find_volume()->disk_initialize->SPI_FLASH_Init()
 	uint8_t res = 0;
+	FRESULT fs_res  = 0XFF;
 	if(mo){
 		if(NULL == fs)
 			fs = (FATFS*) malloc(sizeof(FATFS));
@@ -30,9 +31,9 @@ uint8_t use_fatfs_mount(uint8_t mo)
 		if(NULL == fs)
 			goto END;
 		
-		FRESULT fs_res = f_mount(fs,"1:",1);
-	 
-		if (res!=FR_OK)
+		fs_res = f_mount(fs,"1:",1);
+
+		if (fs_res != FR_OK)
 		{
 			free(fs);
 			fs = NULL;
@@ -42,6 +43,7 @@ uint8_t use_fatfs_mount(uint8_t mo)
 		{
 			res = 1;
 			printf("FATFS Mount ok!\r\n");
+			
 		}		
 	}
 	else
@@ -50,20 +52,23 @@ uint8_t use_fatfs_mount(uint8_t mo)
 		if(NULL == fs)
 			goto END;
 		
-		FRESULT fs_res = f_mount(NULL,"1:",1);
+		fs_res = f_mount(NULL,"1:",0);
 	 
-		if (res!=FR_OK)
+		if (fs_res != FR_OK)
 		{
+			if(fs){
+				free(fs);
+				
+			}
 			print_err(__FUNCTION__,__LINE__,fs_res);
 		}
 		else
 		{
 			free(fs);
-			fs = NULL;
 			res = 1;
 			printf("FATFS remove ok!\r\n");
 		}
-	
+		fs = NULL;
 	}
 
 END:
@@ -206,12 +211,15 @@ void extractFolderPath(const char* filePath, char* folderPath) {
 
 fileNode* createFileNode(const char* name) {
     fileNode* newNode = (fileNode*)malloc(sizeof(fileNode));
+	if(!newNode) return NULL;
+		
     strcpy(newNode->name, name);
     newNode->next = NULL;
     return newNode;
 }
 
 static void insertFileNode(fileNode** head, fileNode* newNode) {
+	if(!newNode) return;
     if (*head == NULL) {
         *head = newNode;
     } else {
@@ -235,7 +243,6 @@ void freeFileList(fileNode* head) {
 
 fileNode* files_scan(char *path, uint16_t *fileNums)
 {
-    FATFS fs;
     FILINFO fileInfo;
     DIR dir;
     FRESULT res;
@@ -246,7 +253,7 @@ fileNode* files_scan(char *path, uint16_t *fileNums)
     // 打开根目录
     res = f_opendir(&dir, path);
     if (res != FR_OK) {
-
+		use_fatfs_mount(0);
         return NULL;
     }
 	

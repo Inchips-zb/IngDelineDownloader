@@ -38,13 +38,7 @@ static const scan_phy_config_t configs[] =
         .phy = PHY_1M,
         .type = SCAN_PASSIVE,
         .interval = 200,
-        .window = 190
-    },
-    {
-        .phy = PHY_CODED,
-        .type = SCAN_PASSIVE,
-        .interval = 200,
-        .window = 190
+        .window = 50
     }
 };
 

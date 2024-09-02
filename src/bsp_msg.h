@@ -28,6 +28,8 @@ enum{
 
 extern  int UserQue_SendMsg(uint32_t msg_id, const void *param, int length);
 extern  int UserQueMsgGet(UserQue_msg_t *Msg);
+extern  int KeyQue_SendMsg(uint32_t msg_id, const void *param, int length);
+extern  int KeyQueMsgGet(UserQue_msg_t *Msg);
 extern  void UserQueInit(void);
 
 #ifdef __cplusplus

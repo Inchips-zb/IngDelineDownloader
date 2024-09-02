@@ -27,6 +27,7 @@ enum{
 	PAGE_SHOW_SET,
 	PAGE_SHOW_ERASE,
 	PAGE_SHOW_BLE,
+	PAGE_SHOW_GAME,
 	PAGE_SHOW_END
 };
 
@@ -43,4 +44,5 @@ extern uint8_t pageSetDisply(void *user_data);
 extern uint8_t pageFileBrowse(void *user_data);
 extern uint8_t pageUdiskDisply(void *user_data);
 extern uint8_t pageBleDisply(void *user_data);
+extern uint8_t pageGameDisply(void *user_data);
 #endif // !_GUI_MENU_H

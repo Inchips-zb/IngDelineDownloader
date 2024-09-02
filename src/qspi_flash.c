@@ -18,6 +18,7 @@ static void WaitQSPIDone(void)
 
 static void SendCMD(uint8_t CMD)
 {
+	SYSCTRL_SelectSpiClk(SPI_PORT_0, SYSCTRL_CLK_PLL_DIV_2);
     apSSP_sDeviceControlBlock param =
     {
         .eSclkDiv       = 0,
@@ -49,6 +50,7 @@ static void SendCMD(uint8_t CMD)
 static uint8_t read_reg_value(uint8_t cmd)
 {
     uint32_t data = 0;
+	  SYSCTRL_SelectSpiClk(SPI_PORT_0, SYSCTRL_CLK_PLL_DIV_3);
     apSSP_sDeviceControlBlock param =
     {
         .eSclkDiv       = 0,
@@ -257,7 +259,7 @@ int ext_flash_program(uint32_t addr, const uint8_t *data, int size)
 void ext_flash_set_status_reg(uint16_t data)
 {
     WriteEnable();
-
+    SYSCTRL_SelectSpiClk(SPI_PORT_0, SYSCTRL_CLK_PLL_DIV_2);
     apSSP_sDeviceControlBlock param =
     {
         .eSclkDiv       = 0,
@@ -292,6 +294,7 @@ void ext_flash_set_status_reg(uint16_t data)
 
 void ext_flash_read(uint32_t addr, uint8_t *buf, uint16_t len)
 {
+	SYSCTRL_SelectSpiClk(SPI_PORT_0, SYSCTRL_CLK_PLL_DIV_3);
     memcpy(buf,(uint8_t*)(addr+AHB_QSPI_MEM_BASE),len);
 }
 

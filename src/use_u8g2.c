@@ -123,33 +123,35 @@ static void setup_peripherals_dma_module(void)
 
 #define I2C_DMA_TX_CHANNEL   (0)//DMA channel 0
 
+DMA_Descriptor descriptor __attribute__((aligned (8)));
 void peripherals_i2c_dma_to_txfifo(int channel_id, void *src, int size)
 {
-    DMA_Descriptor descriptor __attribute__((aligned (8)));
-
     descriptor.Next = (DMA_Descriptor *)0;
     DMA_PrepareMem2Peripheral(&descriptor,SYSCTRL_DMA_I2C0,src,size,DMA_ADDRESS_INC,0);
-
-    DMA_EnableChannel(channel_id, &descriptor);
 }
-static uint8_t dma_send[128];
+static uint8_t dma_send[128] __attribute__((aligned (4)));
 volatile uint8_t send_cmpl = 1;
 
 void i2c0_send_by_dma(uint8_t addr,uint8_t *data,uint16_t len)
 {
 
-  printf("tran:%d\r\n",len);
-  while(0 == send_cmpl) delay_ms(1);
-  send_cmpl = 0;
+//  printf("tran:%d\r\n",len);
+//    delay_ms(1);
+    delay_us(600);
+    while(0 == send_cmpl) delay_ms(1);
+    send_cmpl = 0;
   
-  I2C_DmaEnable(APB_I2C0,1);
-  I2C_CtrlUpdateDirection(APB_I2C0,I2C_TRANSACTION_MASTER2SLAVE);
-  I2C_CtrlUpdateDataCnt(APB_I2C0, len);
-  I2C_Config(APB_I2C0,I2C_ROLE_MASTER,I2C_ADDRESSING_MODE_07BIT,addr);
-  memcpy(dma_send,data,len);
-  peripherals_i2c_dma_to_txfifo(I2C_DMA_TX_CHANNEL, dma_send, len);
-   
-  I2C_CommandWrite(APB_I2C0, I2C_COMMAND_ISSUE_DATA_TRANSACTION);
+    memcpy(dma_send,data,len);
+    descriptor.SrcAddr = (uint32_t)dma_send;
+    descriptor.TranSize = len;
+    DMA_EnableChannel(I2C_DMA_TX_CHANNEL, &descriptor);
+//  peripherals_i2c_dma_to_txfifo(I2C_DMA_TX_CHANNEL, dma_send, len);
+    I2C_Config(APB_I2C0,I2C_ROLE_MASTER,I2C_ADDRESSING_MODE_07BIT,addr);
+    I2C_CtrlUpdateDirection(APB_I2C0,I2C_TRANSACTION_MASTER2SLAVE);
+    I2C_CtrlUpdateDataCnt(APB_I2C0, len);
+    I2C_DmaEnable(APB_I2C0,1);
+    
+    I2C_CommandWrite(APB_I2C0, I2C_COMMAND_ISSUE_DATA_TRANSACTION);
 }
 
 static uint32_t DMA_cb_isr(void *user_data)
@@ -157,7 +159,7 @@ static uint32_t DMA_cb_isr(void *user_data)
     uint32_t state = DMA_GetChannelIntState(I2C_DMA_TX_CHANNEL);
     DMA_ClearChannelIntState(I2C_DMA_TX_CHANNEL, state);
 
-	printf("dma:%x\r\n",state);
+//	printf("dma:%x\r\n",state);
     send_cmpl = 1;
     return 0;
 }
@@ -181,6 +183,17 @@ void setup_oled_io_init(void)
 	PINCTRL_SetPadMux(OLED_SDA_PIN, IO_SOURCE_I2C0_SDA_OUT);
 	SYSCTRL_ResetBlock(SYSCTRL_ITEM_APB_I2C0);
 	SYSCTRL_ReleaseBlock(SYSCTRL_ITEM_APB_I2C0);	
+	i2c_init(I2C_PORT_0);
+	I2C_Enable(APB_I2C0,1);
+	I2C_ConfigClkFrequency(APB_I2C0,I2C_CLOCKFREQUENY_FASTMODE_PLUS);
+#ifdef USE_DMA	
+    setup_peripherals_dma_module();
+	platform_set_irq_callback(PLATFORM_CB_IRQ_DMA, DMA_cb_isr, 0);
+    
+    //DMA Init only use 3 len, burist size is 0
+    peripherals_i2c_dma_to_txfifo(I2C_DMA_TX_CHANNEL, dma_send, 3);
+  
+#endif	
 #else	
 	PINCTRL_SetPadMux(OLED_SCL_PIN, IO_SOURCE_GPIO);
 	PINCTRL_SetPadMux(OLED_SDA_PIN, IO_SOURCE_GPIO);
@@ -192,15 +205,6 @@ void setup_oled_io_init(void)
 	PINCTRL_Pull(OLED_SCL_PIN,PINCTRL_PULL_UP);
 	PINCTRL_Pull(OLED_SDA_PIN,PINCTRL_PULL_UP);
 	
-	i2c_init(I2C_PORT_0);
-	I2C_Enable(APB_I2C0,1);
-	I2C_ConfigClkFrequency(APB_I2C0,I2C_CLOCKFREQUENY_FASTMODE_PLUS);
-#ifdef USE_DMA	
-    setup_peripherals_dma_module();
-	platform_set_irq_callback(PLATFORM_CB_IRQ_DMA, DMA_cb_isr, 0);
- #endif
-
-
 }
 
 void u8g2Init(u8g2_t *u8g2)
@@ -218,6 +222,7 @@ void u8g2Init(u8g2_t *u8g2)
 	u8g2_InitDisplay(u8g2); 
 	u8g2_SetPowerSave(u8g2, 0); 
 	u8g2_ClearBuffer(u8g2);
+	u8g2_SendBuffer(u8g2);
 }
 
 

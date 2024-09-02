@@ -27,7 +27,7 @@ extern  prog_ver_t prog_ver;
 #define ATT_OTA_HANDLE_CTRL         HANDLE_FOTA_CONTROL
 
 typedef struct{  
-     volatile uint8_t  ota_ctrl[1];
+     volatile uint8_t  ota_ctrl;
      volatile uint8_t  ota_downloading;
      volatile uint32_t ota_start_addr;
      volatile uint32_t ota_page_offset;
@@ -67,7 +67,7 @@ int ota_write_callback(uint16_t connection_handle, uint16_t att_handle,
     {
         if (OTA_CTRL_START == buffer[0])
         {
-            ota_s.ota_ctrl[0] = OTA_STATUS_OK;
+            ota_s.ota_ctrl = OTA_STATUS_OK;
             ota_s.ota_start_addr = 0;
             ota_s.ota_downloading = 0;
             return 0;
@@ -84,7 +84,7 @@ int ota_write_callback(uint16_t connection_handle, uint16_t att_handle,
                 goto Fail;
             }
             else
-                ota_s.ota_ctrl[0] = OTA_STATUS_OK;
+                ota_s.ota_ctrl = OTA_STATUS_OK;
             ota_s.ota_downloading = 1;
             ota_s.ota_page_offset = 0;
             break;
@@ -99,14 +99,14 @@ int ota_write_callback(uint16_t connection_handle, uint16_t att_handle,
                     uint16_t crc_value = *(uint16_t *)(buffer + 3);
                     if (ota_s.ota_page_offset < len)
                     {
-                        ota_s.ota_ctrl[0] = OTA_STATUS_WAIT_DATA;
+                        ota_s.ota_ctrl = OTA_STATUS_WAIT_DATA;
                         break;
                     }
 
                     if (crc((uint8_t *)ota_s.ota_start_addr, len) != crc_value)
                        goto Fail;
                     else
-                        ota_s.ota_ctrl[0] = OTA_STATUS_OK;
+                        ota_s.ota_ctrl = OTA_STATUS_OK;
                 }while(0);
             }
             else
@@ -122,11 +122,11 @@ int ota_write_callback(uint16_t connection_handle, uint16_t att_handle,
             else
             {
                 ota_s.ota_start_addr = *(uint32_t *)(buffer + 1);
-                ota_s.ota_ctrl[0] = OTA_STATUS_OK;
+                ota_s.ota_ctrl = OTA_STATUS_OK;
             }
             break;
         case OTA_CTRL_METADATA:
-            if (OTA_STATUS_OK != ota_s.ota_ctrl[0]) goto Fail;
+            if (OTA_STATUS_OK != ota_s.ota_ctrl) goto Fail;
         
             if ((0 == ota_s.ota_downloading) || (buffer_size < 1 + sizeof(ota_meta_t)))
             {
@@ -152,7 +152,7 @@ int ota_write_callback(uint16_t connection_handle, uint16_t att_handle,
             }
             break;
         case OTA_CTRL_REBOOT:
-            if (OTA_STATUS_OK == ota_s.ota_ctrl[0])
+            if (OTA_STATUS_OK == ota_s.ota_ctrl)
             {
                 if (ota_s.ota_downloading)
                 {
@@ -168,7 +168,7 @@ int ota_write_callback(uint16_t connection_handle, uint16_t att_handle,
     }
     else if (att_handle == ATT_OTA_HANDLE_DATA)
     {
-        if (OTA_STATUS_OK == ota_s.ota_ctrl[0])
+        if (OTA_STATUS_OK == ota_s.ota_ctrl)
         {
             if (   (buffer_size & 0x3) || (0 == ota_s.ota_downloading)
                 || (ota_s.ota_page_offset + buffer_size > PAGE_SIZE))
@@ -190,7 +190,7 @@ int ota_write_callback(uint16_t connection_handle, uint16_t att_handle,
     return 0;
 Fail:
     platform_printf("OTA Fail.\n");
-    ota_s.ota_ctrl[0] = OTA_STATUS_ERROR;
+    ota_s.ota_ctrl = OTA_STATUS_ERROR;
     if(ota_s.pBuf)
     {       
         free(ota_s.pBuf);
@@ -214,8 +214,10 @@ int ota_read_callback(uint16_t connection_handle, uint16_t att_handle,
 
     if (att_handle == ATT_OTA_HANDLE_CTRL)
     {
-        buffer[0] = ota_s.ota_ctrl[0];
+        buffer[0] = ota_s.ota_ctrl;
+		ota_s.ota_ctrl = OTA_STATUS_DISABLED;
     }
+	 
     /*
      * To use blow code: add "dynamic" property to VERSION characteristics.  */
     else if (att_handle == ATT_OTA_HANDLE_VER)

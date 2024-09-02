@@ -16,7 +16,8 @@
 #include "device_info.h"
 #include "btstack_util.h"
 #include "eeprom.h"
-
+#include "game_tetris.h"
+#include "bsp_key.h"
 u8g2_t u8g2;        //显示器初始化结构体
 
 #define BEER_FREQ_KEY_BACK   	2600
@@ -36,6 +37,7 @@ const menu_struct_t stMenu[] = {
 									{"SET",&bmpSet},
 									{"ERASE",&bmpErase},
 									{"BLE",&bmpBle},
+									{"GAME",&bmpGamer}
 								};
 
 #define  MENU_NUMS  (sizeof(stMenu)/sizeof(stMenu[0]))
@@ -117,6 +119,7 @@ static void burnPageDrawBackground(void)
 
 }
 	
+
 static void ing_bootloader_trig(void)
 {
      platform_printf("Trigger boot\r\n");
@@ -211,10 +214,18 @@ uint8_t pageBurningDisply(void *user_data)
 	fileNode *nowfileList;
 	fi_offset = sprintf(file_dir,"1:");
     fileNode* fileList = files_scan("1:", &maxFileNums);
-	getfileList = pageFileSerch(fileList,maxFileNums,0);
-	nowfileList = fileList;	
+	if(fileList){
+		printf("ok1\n");
+		getfileList = pageFileSerch(fileList,maxFileNums,0);
+		nowfileList = fileList;	
+	}
+	else
+	{
+		return PAGE_SHOW_MAIN;
+	}
     if(!use_fatfs_mount(1)) {
-		freeFileList(getfileList);
+		if(getfileList)
+			freeFileList(getfileList);
 		return PAGE_SHOW_MAIN;
 	}
 	
@@ -225,22 +236,74 @@ uint8_t pageBurningDisply(void *user_data)
 			switch(RecvMsg.msg_id){
 				
 				case USER_MSG_KEY:{
-					
+					switch(RecvMsg.length)
+					{
+						case 0xa0:{}break;
+						case 0x71:{	
+							apUART_BaudRateSet(APB_UART1,SYSCTRL_GetClk(SYSCTRL_ITEM_APB_UART1),115200);
+							if(fileReady){
+								if(burning) break;
+								use_fatfs_mount(1);
+								ing_bootloader_trig();
+								platform_set_timer(trig_boot_timerout_cb,2000/0.625);
+								burning = 1;
+								key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+								u8g2_FirstPage(&u8g2);
+								do
+								{
+									drawProgress(&u8g2,0,"Burning");
+								   
+								} while (u8g2_NextPage(&u8g2));
+							}
+							else
+							{
+									fi_offset += sprintf(file_dir+fi_offset,"/%s",getfileList->name);
+									printf("open:%s\r\n",file_dir);
+									if((1 == getfileList->isFile) && (0 ==strcasecmp(getfileList->name,"flash_download.ini"))) {
+										
+										if(getfileList){
+											freeFileList(getfileList);
+											getfileList = NULL;
+										}
+										if(subfileList)
+										{
+											freeFileList(getfileList);
+											getfileList = NULL;
+										}
+										fileReady = 1;
+										load_downloader_cfg(file_dir);
+										burnPageDrawBackground();
+										break;
+									}
+						
+									subfileList = files_scan(file_dir, &maxFileNums);
+									nowfileList = subfileList;
+									coder = 0;
+									getfileList = pageFileSerch(nowfileList,maxFileNums,abs(coder));						
+							
+								}
+							printf("key confirm\n");
+						}break;
+						case 0xc1:{						
+							key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+							printf("key back\n");
+							if(burning) break;
+							if(getfileList){
+								freeFileList(getfileList);
+								getfileList = NULL;
+							}
+							if(subfileList)
+							{
+								freeFileList(getfileList);
+								getfileList = NULL;
+							}
+							use_fatfs_mount(0);
+							return PAGE_SHOW_MAIN;
+						}break;
+						default:break;
+					}
 					if(RecvMsg.length & 0x01) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
-						printf("key back\n");
-						if(burning) break;
-						if(getfileList){
-							freeFileList(getfileList);
-							getfileList = NULL;
-						}
-						if(subfileList)
-						{
-							freeFileList(getfileList);
-							getfileList = NULL;
-						}
-						use_fatfs_mount(0);
-						return PAGE_SHOW_MAIN;
+
 					}
 					if(RecvMsg.length & 0x06) {
 						apUART_BaudRateSet(APB_UART1,SYSCTRL_GetClk(SYSCTRL_ITEM_APB_UART1),115200);
@@ -375,6 +438,25 @@ static void mainPageDrawBackground(uint8_t index,uint8_t x)
 }
 
 static int index_menu = 0;
+extern void app_power_down(GIO_Index_t wk_pin);
+
+static void drawPowerDown(void)
+{
+	u8g2_FirstPage(&u8g2);
+	u8g2_ClearBuffer(&u8g2);
+	u8g2_SendBuffer(&u8g2);
+	do
+	{
+		u8g2_DrawStr(&u8g2, (128-u8g2_GetStrWidth(&u8g2, "Powerdown"))/2, 28, "Powerdown");
+	} while (u8g2_NextPage(&u8g2));	
+	delay_ms(1000);
+	key_coder_buzzer_open(2400,1000);
+	u8g2_ClearBuffer(&u8g2);
+	u8g2_SendBuffer(&u8g2);	
+
+    app_power_down(KB_KEY_PSH);			
+}
+
 uint8_t pageMainDisply(void *user_data)
 {
 	UserQue_msg_t RecvMsg;
@@ -388,17 +470,21 @@ uint8_t pageMainDisply(void *user_data)
 			switch(RecvMsg.msg_id){
 				
 				case USER_MSG_KEY:{
-					
-					if(RecvMsg.length & 0x01) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
-						printf("key back\n");
+					platform_printf("Key:%x\n",RecvMsg.length);
+					switch(RecvMsg.length)
+					{
+						case 0xa0:{drawPowerDown();}break;
+						case 0x71:{	
+							key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+							return (index_menu+PAGE_SHOW_BURN);
+						}break;
+						case 0xc1:{						
+							key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+							printf("key back\n");
+						}break;
+						default:break;
 					}
-					if(RecvMsg.length & 0x02 ) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
-						
-						printf("page entry:%d\n",index_menu);
-						return (index_menu+PAGE_SHOW_BURN);
-					}
+				
 				}break;
 				
 				case USER_MSG_CODER:{
@@ -450,18 +536,22 @@ uint8_t pageUdiskDisply(void *user_data)
 			switch(RecvMsg.msg_id){
 				
 				case USER_MSG_KEY:{
-					
-					if(RecvMsg.length & 0x01) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
-						printf("key back\n");
-						platform_reset();
-					}
-					if(RecvMsg.length & 0x06) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
-						
-						printf("key confirm\n");
-						
-					}
+					platform_printf("Key:%x\n",RecvMsg.length);
+					switch(RecvMsg.length)
+					{
+						case 0xa0:{drawPowerDown();}break;
+						case 0x71:{	
+							key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+							printf("key confirm\n");
+						}break;
+						case 0xc1:{						
+							key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+							printf("key back\n");
+							platform_reset();
+						}break;
+						default:break;
+					}					
+
 				}break;
 									
 				default:break;
@@ -474,8 +564,6 @@ uint8_t pageUdiskDisply(void *user_data)
 
 
 volatile uint8_t bleState = 0;
-
-
 
 static void showAdvLinkedList(advNode* startNode,uint8_t showNums,uint16_t total) {
 #define BLE_DISPLAY_START_Y (1)	   
@@ -505,7 +593,7 @@ static void showAdvLinkedList(advNode* startNode,uint8_t showNums,uint16_t total
 						
 				}
 				else{
-					sprintf(sc_buff,"%02x:%02x:%02x:%02x:%02x:%02x %ddBm", currentNode->address[0],currentNode->address[1],currentNode->address[2],currentNode->address[3],currentNode->address[4],currentNode->address[5],currentNode->rssi);
+					sprintf(sc_buff,"%s %ddBm",bd_addr_to_str(currentNode->address),currentNode->rssi);
 				}
 				currentNode = currentNode->next;
 			} 
@@ -539,19 +627,26 @@ uint8_t pageBleDisply(void *user_data)
 				
 				case USER_MSG_KEY:{
 					
-					if(RecvMsg.length & 0x01) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
-						printf("key back\n");
-						freeAdvLinkedList(advListHead);
-						advListHead = NULL;
-					    return (PAGE_SHOW_MAIN);
-					}
-					if(RecvMsg.length & 0x06) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
-						if(advListHead)
-							btstack_push_user_msg(USER_MSG_BLE_STATE_SET, (void *)NULL, bleNextState);
-						printf("key confirm:%d\n",bleNextState);
-					}
+					platform_printf("Key:%x\n",RecvMsg.length);
+					switch(RecvMsg.length)
+					{
+						case 0xa0:{drawPowerDown();}break;
+						case 0x71:{	
+							key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+							if(advListHead)
+								btstack_push_user_msg(USER_MSG_BLE_STATE_SET, (void *)NULL, bleNextState);
+							printf("key confirm:%d\n",bleNextState);
+						}break;
+						case 0xc1:{						
+							key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+							printf("key back\n");
+							freeAdvLinkedList(advListHead);
+							advListHead = NULL;
+							return (PAGE_SHOW_MAIN);
+						}break;
+						default:break;
+					}						
+
 				}break;
 	
 				case USER_MSG_BLE_STATE:
@@ -599,7 +694,13 @@ uint8_t pageFileBrowse(void *user_data){
 	fileNode *getfileList;
 	fileNode *nowfileList;
     fileNode* fileList = files_scan("1:", &maxFileNums);
+	if(!fileList) 	return (PAGE_SHOW_MAIN); 
 	getfileList = pageFileSerch(fileList,maxFileNums,0);
+	if(!getfileList) {
+						freeFileList(fileList);
+						fileList = NULL;	
+						return (PAGE_SHOW_MAIN);
+	}
 	nowfileList = fileList;
 	printf("File:%d\n", maxFileNums);
     for (;;)
@@ -610,36 +711,40 @@ uint8_t pageFileBrowse(void *user_data){
 			switch(RecvMsg.msg_id){
 				
 				case USER_MSG_KEY:{
-					
-					if(RecvMsg.length & 0x01) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
-						printf("key back\n");
-						if(subfileList){
-							freeFileList(subfileList);
-							subfileList = NULL;
+					platform_printf("Key:%x\n",RecvMsg.length);
+					switch(RecvMsg.length)
+					{
+						case 0xa0:{drawPowerDown();}break;
+						case 0x71:{	
+							char sc_buff[64];
+							key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+							printf("key confirm:%d\n",getfileList->isFile);
+							if(1 == getfileList->isFile) break;
+							sprintf(sc_buff,"1:/%s",getfileList->name);
+							subfileList = files_scan(sc_buff, &maxFileNums);
+							nowfileList = subfileList;
 							coder = 0;
-							nowfileList = fileList;
-							getfileList = pageFileSerch(nowfileList,maxFileNums,abs(coder));		
-						}else
-						{
-							freeFileList(fileList);
-							fileList = NULL;
-							return (PAGE_SHOW_MAIN);
-						}
-						
-					}
-					if(RecvMsg.length & 0x06) {
-						char sc_buff[64];
-						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
-						printf("key confirm:%d\n",getfileList->isFile);
-						if(1 == getfileList->isFile) break;
-						sprintf(sc_buff,"1:/%s",getfileList->name);
-						subfileList = files_scan(sc_buff, &maxFileNums);
-						nowfileList = subfileList;
-						coder = 0;
-						getfileList = pageFileSerch(nowfileList,maxFileNums,abs(coder));
-						
-					}
+							getfileList = pageFileSerch(nowfileList,maxFileNums,abs(coder));
+						}break;
+						case 0xc1:{						
+							key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+							printf("key back\n");
+							if(subfileList){
+								freeFileList(subfileList);
+								subfileList = NULL;
+								coder = 0;
+								nowfileList = fileList;
+								getfileList = pageFileSerch(nowfileList,maxFileNums,abs(coder));		
+							}else
+							{
+								freeFileList(fileList);
+								fileList = NULL;
+								return (PAGE_SHOW_MAIN);
+							}
+						}break;
+						default:break;
+					}						
+					
 				}break;
 				
 				case USER_MSG_CODER:{
@@ -734,20 +839,26 @@ uint8_t pageSetDisply(void *user_data)
 			switch(RecvMsg.msg_id){
 				
 				case USER_MSG_KEY:{
-					
-					if(RecvMsg.length & 0x01) {
-						printf("key back\n");
-						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
-						memcpy(pDev,&tDevice,sizeof(dev_info_t));
-						storage_device_informs();
-						return (PAGE_SHOW_MAIN);
-					}
-					if(RecvMsg.length & 0x06) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
-						tDevice.beer_en = !tDevice.beer_en;
-						setPageDrawBackground(tDevice,coder);
-						printf("key confirm\n");
-					}
+					platform_printf("Key:%x\n",RecvMsg.length);
+					switch(RecvMsg.length)
+					{
+						case 0xa0:{drawPowerDown();}break;
+						case 0x71:{	
+							key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+							tDevice.beer_en = !tDevice.beer_en;
+							setPageDrawBackground(tDevice,coder);
+							printf("key confirm\n");
+						}break;
+						case 0xc1:{						
+							printf("key back\n");
+							key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+							memcpy(pDev,&tDevice,sizeof(dev_info_t));
+							storage_device_informs();
+							return (PAGE_SHOW_MAIN);
+						}break;
+						default:break;	
+					}						
+
 				}break;
 				
 				case USER_MSG_CODER:{
@@ -809,17 +920,19 @@ uint8_t eraseMainDisply(void *user_data)
 			switch(RecvMsg.msg_id){
 				
 				case USER_MSG_KEY:{
-					
-					if(RecvMsg.length & 0x01) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
-						printf("key back\n");
-						return (PAGE_SHOW_MAIN);
-					}
-					if(RecvMsg.length & 0x06) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
-						
-						printf("key confirm\n");
-						
+					switch(RecvMsg.length)
+					{
+						case 0xa0:{drawPowerDown();}break;
+						case 0x71:{	
+							key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+							printf("key confirm\n");
+						}break;
+						case 0xc1:{						
+							key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+							printf("key back\n");
+							return (PAGE_SHOW_MAIN);
+						}break;
+						default:break;	
 					}
 				}break;
 				
@@ -856,9 +969,49 @@ uint8_t pageDrowLogDisply(void *user_data)
 	   drawLog(&u8g2);
 	   
 	} while (u8g2_NextPage(&u8g2));
-	
 	vTaskDelay(pdMS_TO_TICKS(1000));
+	return PAGE_SHOW_MAIN;
+}
 
+uint8_t pageGameDisply(void *user_data)
+{
+	UserQue_msg_t RecvMsg;
+    game_teris_t *teris = (game_teris_t *)malloc(sizeof(game_teris_t));
+	if(teris)game_begin(&u8g2,teris);
+	else return PAGE_SHOW_MAIN;
+	for(;;)
+	{
+		
+		if(UserQueMsgGet(&RecvMsg)) 
+		{
+			switch(RecvMsg.msg_id){
+				
+				case USER_MSG_KEY:{
+					switch(RecvMsg.length)
+					{
+						case 0xa0:{drawPowerDown();}break;
+						case 0x71:{	
+							key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+							printf("key confirm\n");
+						}break;
+						case 0xc1:{						
+							key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+							printf("key back\n");
+							return (PAGE_SHOW_MAIN);
+						}break;
+						default:break;	
+					}
+				}break;
+				
+
+				case USER_MSG_RTC_S:{
+	                
+				}break;
+				default:break;
+			}
+		}
+		vTaskDelay(pdMS_TO_TICKS(1000));
+	}
 	return PAGE_SHOW_MAIN;
 }
 
@@ -967,11 +1120,19 @@ uint8_t pageClockDisply(void *user_data)
 			switch(RecvMsg.msg_id){
 				
 				case USER_MSG_KEY:{
-					
-					if(RecvMsg.length & 0x01) {
-						key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
-						return PAGE_SHOW_MAIN;
-						printf("key back\n");
+					switch(RecvMsg.length)
+					{
+						case 0xa0:{drawPowerDown();}break;
+						case 0x71:{	
+							key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+							printf("key confirm\n");
+						}break;
+						case 0xc1:{						
+							key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+							printf("key back\n");
+							return (PAGE_SHOW_MAIN);
+						}break;
+						default:break;	
 					}
 				}break;
 				
@@ -1006,9 +1167,21 @@ uint8_t pageSetClockDisply(void)
 			switch(RecvMsg.msg_id){
 				
 				case USER_MSG_KEY:{
-					
-					if(RecvMsg.length & 0x01) printf("key back\n");
-					if(RecvMsg.length & 0x02) printf("key confirm\n");
+					switch(RecvMsg.length)
+					{
+						case 0xa0:{drawPowerDown();}break;
+						case 0x71:{	
+							key_coder_buzzer_open(BEER_FREQ_KEY_CONFIRM,80);
+							printf("key confirm\n");
+						}break;
+						case 0xc1
+							:{						
+							key_coder_buzzer_open(BEER_FREQ_KEY_BACK,80);
+							printf("key back\n");
+							return (PAGE_SHOW_MAIN);
+						}break;
+						default:break;	
+					}
 				}break;
 				
 				case USER_MSG_CODER:{

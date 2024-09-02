@@ -8,7 +8,7 @@ platform_config(PLATFORM_CFG_RT_CLK_ACC, 500);
 void cube_setup_peripherals(void)
 {
 SYSCTRL_SetPClkDiv(5);
-SYSCTRL_SelectSpiClk(SPI_PORT_0, SYSCTRL_CLK_PLL_DIV_4);
+SYSCTRL_SelectSpiClk(SPI_PORT_0, SYSCTRL_CLK_PLL_DIV_2);
 SYSCTRL_SelectQDECClk(SYSCTRL_CLK_HCLK, 1);
 
 SYSCTRL_ClearClkGateMulti((1 << SYSCTRL_ITEM_APB_PinCtrl)

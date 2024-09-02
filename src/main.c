@@ -24,6 +24,7 @@
 #include "eflash.h"
 #include "device_info.h"
 #include "eeprom.h"
+#include "key_board_sample.h"
 #include "../data/setup_soc.cgen"
 
 static uint32_t cb_hard_fault(hard_fault_info_t *info, void *_)
@@ -159,14 +160,41 @@ static void setupBurnTrigIo(void)
 
 
 uint8_t page_index = PAGE_SHOW_LOG;
+void app_power_down(GIO_Index_t wk_pin)
+{
+	GIO_EnableDeepSleepWakeupSource(wk_pin, 1, GIO_WAKEUP_MODE_FALLING_EDGE, PINCTRL_PULL_UP);
+	platform_printf("Shutdown,wakepin:%d\n",wk_pin);
+	while(1){
+		delay_ms(10);
+		platform_shutdown(0,0,0);
+	}
+}
+void power_on_check(void)
+{
+	uint64_t entry_tick = platform_get_us_time();
+	while((0 == GIO_ReadValue(KB_KEY_PSH)))
+	{
+		if(entry_tick+2000000 <= platform_get_us_time()) return;
+		delay_ms(1);
+	}
+POWER_DOWN:
+	app_power_down(KB_KEY_PSH);
+}
+
+void on_key_event(uint8_t key,key_press_event_t evt)
+{
+	platform_printf("Key:%d,%d\n",key,evt);
+	UserQue_SendMsg(USER_MSG_KEY,NULL, (key<<4) | (evt&0x0f));
+}
+
 static void u8g2_task(void *pdata)
 {
 	u8g2Init(&u8g2);
+	power_on_check();
 #ifdef TEST_FAFTS
-	if((1 == GIO_ReadValue(KB_KEY_PSH)))
+	if((1 == GIO_ReadValue(KB_KEY_CONFIRM)))
 	{
 	    page_index = PAGE_SHOW_LOG;
-		//load_downloader_cfg();
 	}
 	else{
 		page_index = PAGE_SHOW_UDISK;
@@ -180,6 +208,7 @@ static void u8g2_task(void *pdata)
 	uart_driver_init(APB_UART1, NULL, uart_buner_rx_data);
 	setup_uart1();
 	key_coder_buzzer_open(2700,1000);
+	key_detect_init(on_key_event);
     for (;;)
     {
 		switch(page_index){
@@ -227,7 +256,11 @@ static void u8g2_task(void *pdata)
 			case PAGE_SHOW_BLE:
 			{        
 				page_index = pageBleDisply(NULL);
-			}break;		
+			}break;	
+			case PAGE_SHOW_GAME:
+			{        
+				page_index = pageGameDisply(NULL);
+			}break;				
 			default:break;
 		}
 	}
